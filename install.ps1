@@ -13,16 +13,18 @@ $RepoDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 function Install-Claude {
     $dir = "$env:USERPROFILE\.claude\skills\loop-engineer"
-    New-Item -ItemType Directory -Force $dir | Out-Null
+    New-Item -ItemType Directory -Force "$dir\agents" | Out-Null
     Copy-Item "$RepoDir\skills\loop-engineer\SKILL.md" "$dir\SKILL.md"
+    Copy-Item "$RepoDir\skills\loop-engineer\agents\*.md" "$dir\agents\"
     Write-Host "Claude Code: installed to $dir"
     Write-Host "Restart Claude Code, then use /loop-engineer in any project."
 }
 
 function Install-Codex {
     $dir = "$env:USERPROFILE\.codex\skills\loop-engineer-codex"
-    New-Item -ItemType Directory -Force $dir | Out-Null
+    New-Item -ItemType Directory -Force "$dir\agents" | Out-Null
     Copy-Item "$RepoDir\skills\loop-engineer-codex\SKILL.md" "$dir\SKILL.md"
+    Copy-Item "$RepoDir\skills\loop-engineer-codex\agents\*.toml" "$dir\agents\"
     Write-Host "Codex CLI: installed to $dir"
     Write-Host "Use /loop-engineer-codex in any Codex session."
 }

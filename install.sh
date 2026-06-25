@@ -13,16 +13,18 @@ MODE="${1:-}"
 
 install_claude() {
   local dir="${HOME}/.claude/skills/loop-engineer"
-  mkdir -p "$dir"
+  mkdir -p "$dir/agents"
   cp "$REPO_DIR/skills/loop-engineer/SKILL.md" "$dir/SKILL.md"
+  cp "$REPO_DIR/skills/loop-engineer/agents/"*.md "$dir/agents/"
   echo "Claude Code: installed to $dir"
   echo "Restart Claude Code, then use /loop-engineer in any project."
 }
 
 install_codex() {
   local dir="${HOME}/.codex/skills/loop-engineer-codex"
-  mkdir -p "$dir"
+  mkdir -p "$dir/agents"
   cp "$REPO_DIR/skills/loop-engineer-codex/SKILL.md" "$dir/SKILL.md"
+  cp "$REPO_DIR/skills/loop-engineer-codex/agents/"*.toml "$dir/agents/"
   echo "Codex CLI: installed to $dir"
   echo "Use /loop-engineer-codex in any Codex session."
 }
