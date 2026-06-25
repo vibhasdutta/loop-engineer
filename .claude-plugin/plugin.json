@@ -1,0 +1,10 @@
+{
+  "name": "loop-engineer",
+  "version": "1.0.0",
+  "description": "Loop engineering wizard for Claude Code. Answer 3 questions and Claude orchestrates a maker/verifier agent loop until your goal is met.",
+  "author": {
+    "name": "Vibhas Dutta",
+    "email": "dotdefence.info@gmail.com"
+  },
+  "repository": "https://github.com/vibhasdutta/loop-engineer"
+}
