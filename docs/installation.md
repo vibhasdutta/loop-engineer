@@ -5,7 +5,7 @@
 | Skill | Platform | Minimum version |
 |---|---|---|
 | `/loop-engineer` | [Claude Code](https://claude.ai/code) (CLI or desktop app) | any |
-| `/loop-engineer-codex` | [Codex CLI](https://github.com/openai/codex) | 0.128.0+ (for `/goal` and sub-agent support) |
+| `/loop-engineer-codex` | [Codex CLI](https://github.com/openai/codex) | 0.128.0+ |
 
 ---
 
@@ -15,6 +15,14 @@
 
 ```bash
 curl -s https://raw.githubusercontent.com/vibhasdutta/loop-engineer/main/install.sh | bash
+```
+
+### Windows (PowerShell)
+
+```powershell
+git clone https://github.com/vibhasdutta/loop-engineer.git
+cd loop-engineer
+.\install.ps1
 ```
 
 ### Plugin system (recommended — auto-updates)
@@ -45,15 +53,7 @@ Or add manually to `~/.claude/settings.json`:
 
 ```bash
 git clone https://github.com/vibhasdutta/loop-engineer.git
-bash loop-engineer/install.sh
-```
-
-### Manual (Windows PowerShell)
-
-```powershell
-git clone https://github.com/vibhasdutta/loop-engineer.git
-New-Item -ItemType Directory -Force "$env:USERPROFILE\.claude\skills\loop-engineer"
-Copy-Item "loop-engineer\skills\loop-engineer\SKILL.md" "$env:USERPROFILE\.claude\skills\loop-engineer\SKILL.md"
+cd loop-engineer && bash install.sh
 ```
 
 ### Verify
@@ -64,12 +64,20 @@ Restart Claude Code, then type `/loop-engineer` in any project.
 
 ## Codex CLI
 
-Installs to `~/.codex/skills/loop-engineer-codex/` (global) or `.agents/skills/` (project-level).
+Installs to `~/.codex/skills/loop-engineer-codex/`.
 
 ### One-liner (macOS / Linux)
 
 ```bash
 curl -s https://raw.githubusercontent.com/vibhasdutta/loop-engineer/main/install.sh | bash -s -- --codex
+```
+
+### Windows (PowerShell)
+
+```powershell
+git clone https://github.com/vibhasdutta/loop-engineer.git
+cd loop-engineer
+.\install.ps1 -Codex
 ```
 
 ### Manual (macOS / Linux)
@@ -80,14 +88,6 @@ curl -s https://raw.githubusercontent.com/vibhasdutta/loop-engineer/main/skills/
   > ~/.codex/skills/loop-engineer-codex/SKILL.md
 ```
 
-### Manual (Windows PowerShell)
-
-```powershell
-git clone https://github.com/vibhasdutta/loop-engineer.git
-New-Item -ItemType Directory -Force "$env:USERPROFILE\.codex\skills\loop-engineer-codex"
-Copy-Item "loop-engineer\skills\loop-engineer-codex\SKILL.md" "$env:USERPROFILE\.codex\skills\loop-engineer-codex\SKILL.md"
-```
-
 ### Verify
 
 In a Codex session, type `/loop-engineer-codex` in any project.
@@ -96,7 +96,15 @@ In a Codex session, type `/loop-engineer-codex` in any project.
 
 ## Install both at once
 
+**macOS / Linux:**
 ```bash
 git clone https://github.com/vibhasdutta/loop-engineer.git
-bash loop-engineer/install.sh --both
+cd loop-engineer && bash install.sh --both
+```
+
+**Windows (PowerShell):**
+```powershell
+git clone https://github.com/vibhasdutta/loop-engineer.git
+cd loop-engineer
+.\install.ps1 -Both
 ```

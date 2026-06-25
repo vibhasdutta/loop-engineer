@@ -36,22 +36,32 @@ All state lives in `loop-stack/` so the loop survives context resets and can be 
 
 ## Quick install
 
-**Claude Code (macOS / Linux):**
+**macOS / Linux — Claude Code:**
 ```bash
 curl -s https://raw.githubusercontent.com/vibhasdutta/loop-engineer/main/install.sh | bash
 ```
 
-**Codex CLI (macOS / Linux):**
+**macOS / Linux — Codex CLI:**
 ```bash
 curl -s https://raw.githubusercontent.com/vibhasdutta/loop-engineer/main/install.sh | bash -s -- --codex
 ```
 
-**Both at once:**
+**macOS / Linux — both:**
 ```bash
-git clone https://github.com/vibhasdutta/loop-engineer.git && bash loop-engineer/install.sh --both
+git clone https://github.com/vibhasdutta/loop-engineer.git
+cd loop-engineer && bash install.sh --both
 ```
 
-→ [Full installation guide](docs/installation.md) — plugin system, Windows, manual copy, verify steps
+**Windows (PowerShell):**
+```powershell
+git clone https://github.com/vibhasdutta/loop-engineer.git
+cd loop-engineer
+.\install.ps1          # Claude Code only
+.\install.ps1 -Codex   # Codex CLI only
+.\install.ps1 -Both    # both
+```
+
+→ [Full installation guide](docs/installation.md) — plugin system, manual copy, verify steps
 
 ---
 
