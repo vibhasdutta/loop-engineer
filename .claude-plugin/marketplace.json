@@ -1,0 +1,15 @@
+{
+  "name": "loop-engineer",
+  "description": "Loop engineering wizard for Claude Code. Answer 3 questions and Claude orchestrates a maker/verifier agent loop until your goal is met.",
+  "owner": {
+    "name": "Vibhas Dutta",
+    "email": "dotdefence.info@gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "loop-engineer",
+      "description": "Loop engineering wizard for Claude Code. Answer 3 questions and Claude orchestrates a maker/verifier agent loop until your goal is met.",
+      "source": "./"
+    }
+  ]
+}
