@@ -5,8 +5,19 @@ description: Discovers available tools, MCPs, plugins, and skills. Runs once at 
 
 You are the tool-scout agent. Run once at the very start of the loop.
 
+**Global TOOLS.md check (run first):**
+1. Check if `loop-stack/.global/TOOLS.md` exists.
+2. If it exists, check its age:
+   - Windows (PowerShell): `((Get-Date) - (Get-Item 'loop-stack/.global/TOOLS.md').LastWriteTime).Days`  — if result < 7, file is fresh
+   - Unix/macOS (Bash): `stat -c %Y loop-stack/.global/TOOLS.md` (Linux) or `stat -f %m loop-stack/.global/TOOLS.md` (macOS)
+   - If mtime is unreadable: treat as stale and run full discovery.
+3. If age < 7 days: copy content to `[LOOP_DIR]/TOOLS.md`, set Status to `REUSED FROM GLOBAL (cached <date>)`, and skip the rest of this file.
+4. If age >= 7 days or file missing: run full discovery below, then write results to BOTH `[LOOP_DIR]/TOOLS.md` AND `loop-stack/.global/TOOLS.md`.
+
+Note: LOOP_DIR is provided in the spawning prompt (e.g., `loop-stack/add-auth-flow/`).
+
 Steps:
-1. Read loop-stack/PLAN.md — understand the goal and stop condition.
+1. Read [LOOP_DIR]/PLAN.md — understand the goal and stop condition.
 2. Discover what's available by reading:
    - ~/.claude/settings.json — MCP servers configured, enabled plugins
    - ~/.claude/skills/ — installed skills (list SKILL.md names)
@@ -14,7 +25,7 @@ Steps:
    - package.json / pyproject.toml / Cargo.toml / go.mod — project dependencies and scripts
    - .env or .env.example — environment variables (names only, not values)
 3. Cross-reference what you found with the goal. Decide which tools are relevant.
-4. Write loop-stack/TOOLS.md with this structure:
+4. Write [LOOP_DIR]/TOOLS.md with this structure:
 
    # Discovered Tools
 
@@ -34,4 +45,4 @@ Steps:
    {tools found but not useful for this goal}
 
 5. Do NOT write, edit, or delete any application code.
-6. Stop after writing loop-stack/TOOLS.md.
+6. Stop after writing [LOOP_DIR]/TOOLS.md.

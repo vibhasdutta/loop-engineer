@@ -27,7 +27,7 @@ Before anything else, scan for any `loop-stack/*/STATUS.md` files (subdirectory 
 > Resume this loop or start fresh?"
 
 - **Resume** → skip to Phase 6 (Outer Loop) using existing files in `loop-stack/{loop-id}/`.
-- **Fresh** → delete that `loop-stack/<loop-id>/` directory and `.claude/agents/`, continue to Phase 1.
+- **Fresh** → delete only `loop-stack/<loop-id>/` directory (do NOT delete `.claude/agents/` — those are shared across loops), continue to Phase 1.
 
 **If multiple found:** List them all — show loop-id, State, and Progress for each:
 > "Found multiple existing loops:
@@ -52,44 +52,31 @@ Ask **one at a time**. Wait for the full answer before asking the next.
 After storing GOAL, generate LOOP_ID by slugifying GOAL:
 - lowercase, replace non-alphanumeric runs with hyphens, strip leading/trailing hyphens, max 40 chars
 - Example: "Add auth flow to API" → "add-auth-flow-to-api"
+- If the resulting LOOP_ID is empty (e.g., goal was all punctuation or non-ASCII), use a timestamp fallback: `loop-` + current date-time as `YYYYMMDD-HHMMSS`.
+- After truncating to 40 chars, strip any trailing hyphen.
 
 Store as LOOP_ID.
 
-**Q2 — Stop condition:**
-> "How do we verify success? Give the exact command or condition that proves it's done.
-> Examples: `npm test exits 0` · `python -m pytest exits 0` · `all tasks in loop-stack/<LOOP_ID>/PLAN.md checked` · `CI green`"
+Auto-set without asking:
+- `STOP_CONDITION` = "all tasks in loop-stack/<LOOP_ID>/PLAN.md checked"
+- `BUDGET_STRING` = "20 turns"
+- `MAX_TURNS` = 20
 
-**Q3 — Budget:**
-> "What's the maximum budget before the loop stops?
-> Examples: `10 turns` · `$5` · `15 turns or $3, whichever first`"
-
-**Q4 — Git integration:**
+**Q2 — Git integration:**
 > "Should the loop auto-commit after each verified task? (yes / no)
 > If yes, I'll commit: `loop: complete <task>`"
 
-Store: `GOAL`, `LOOP_ID`, `STOP_CONDITION`, `BUDGET_STRING`, `MAX_TURNS` (integer, default 20), `USE_GIT`.
+Store: `GOAL`, `LOOP_ID`, `STOP_CONDITION`, `BUDGET_STRING`, `MAX_TURNS`, `USE_GIT`.
 
 ---
 
-## Phase 2 — Smart Follow-up Questions
+## Phase 2 — Task Decomposition
 
-Analyze `GOAL`. Generate exactly 2 context-aware questions that would meaningfully improve the loop (tech stack, test patterns, auth constraints, style guide, deployment target, etc.).
-
-> "2 quick questions to help the loop work better — answer or skip?
-> 1. {smart question 1}
-> 2. {smart question 2}"
-
-Store as `EXTRA_CONTEXT_1`, `EXTRA_CONTEXT_2` (empty if skipped).
+Derive 3–7 atomic, ordered, specific tasks from `GOAL`. Do not ask the user.
 
 ---
 
-## Phase 3 — Task Decomposition
-
-Derive 3–7 atomic, ordered, specific tasks from `GOAL` and any extra context. Do not ask the user.
-
----
-
-## Phase 4 — File Generation
+## Phase 3 — File Generation
 
 ### loop-stack/<LOOP_ID>/ files
 
@@ -110,10 +97,6 @@ Create the `loop-stack/<LOOP_ID>/` directory.
 
     ## Git Integration
     {yes / no}
-
-    ## Extra Context
-    {EXTRA_CONTEXT_1 or "(none)"}
-    {EXTRA_CONTEXT_2 or "(none)"}
 
     ## Tasks
     - [ ] {TASK_1}
@@ -227,7 +210,7 @@ After copying/writing all files, confirm:
 
 ---
 
-## Phase 5 — Tool Discovery Run
+## Phase 4 — Tool Discovery Run
 
 Before the main loop, spawn the tool-scout agent once:
 
@@ -241,18 +224,11 @@ Check loop-stack/.global/TOOLS.md:
 Follow .claude/agents/tool-scout.md instructions.
 ```
 
-After tool-scout completes, read `loop-stack/<LOOP_ID>/TOOLS.md` and show the user:
-
-> "Tools discovered:
-> {list of recommended tools for this goal}
->
-> The loop will use these. Continue?"
-
-Wait for confirmation (or auto-continue after 5 seconds of no response).
+Auto-continue into the outer loop immediately after tool-scout completes — no user confirmation needed.
 
 ---
 
-## Phase 6 — Outer Loop
+## Phase 5 — Outer Loop
 
 You (Claude, main session) are the outer loop controller.
 
@@ -268,7 +244,7 @@ You (Claude, main session) are the outer loop controller.
 
 ### Step 1 — Budget check
 If `turns_used >= MAX_TURNS`:
-- Stop. Report budget reached. Go to Phase 7.
+- Stop. Report budget reached. Go to Phase 6.
 
 ### Step 2 — Read state
 Read `loop-stack/<LOOP_ID>/STATUS.md` → `current_task`, `attempts`, last results.
@@ -276,7 +252,9 @@ Read `loop-stack/<LOOP_ID>/STATUS.md` → `current_task`, `attempts`, last resul
 ### Step 3 — Spawn DEVELOPER
 ```
 Loop directory: loop-stack/<LOOP_ID>/
-Read loop-stack/<LOOP_ID>/MEMORY.md, loop-stack/<LOOP_ID>/TOOLS.md, loop-stack/<LOOP_ID>/PLAN.md, loop-stack/<LOOP_ID>/STATUS.md.
+Read loop-stack/.global/MEMORY.md (cross-loop project learnings).
+Read loop-stack/<LOOP_ID>/MEMORY.md (this loop's learnings).
+Read loop-stack/<LOOP_ID>/TOOLS.md, loop-stack/<LOOP_ID>/PLAN.md, loop-stack/<LOOP_ID>/STATUS.md.
 Current task: {current_task}
 Previous attempt result: {Last Developer Result}
 Implement. Follow .claude/agents/developer.md.
@@ -286,6 +264,8 @@ Increment `turns_used`.
 ### Step 4 — Spawn QA TESTER
 ```
 Loop directory: loop-stack/<LOOP_ID>/
+Read loop-stack/.global/MEMORY.md (cross-loop project learnings).
+Read loop-stack/<LOOP_ID>/MEMORY.md (this loop's learnings).
 Current task just implemented: {current_task}
 Run QA checks using tools from loop-stack/<LOOP_ID>/TOOLS.md.
 Follow .claude/agents/qa-tester.md.
@@ -310,6 +290,8 @@ Run stop condition and update loop-stack/<LOOP_ID>/. Follow .claude/agents/verif
 ### Step 7 — Spawn AUDITOR
 ```
 Loop directory: loop-stack/<LOOP_ID>/
+Read loop-stack/.global/MEMORY.md (cross-loop project learnings).
+Read loop-stack/<LOOP_ID>/MEMORY.md (this loop's learnings).
 Task just verified: {current_task}
 Review for quality. Follow .claude/agents/auditor.md.
 ```
@@ -333,12 +315,12 @@ Distill learnings. Follow .claude/agents/memory-keeper.md.
 - Reset attempts to 0
 - If `USE_GIT`: commit `loop-stack/<LOOP_ID>/PLAN.md` + `loop-stack/<LOOP_ID>/STATUS.md` with `loop: verified {current_task}`
 - Find next unchecked task in loop-stack/<LOOP_ID>/PLAN.md
-- If none → update loop-stack/<LOOP_ID>/STATUS.md State to ALL DONE → go to Phase 7
+- If none → update loop-stack/<LOOP_ID>/STATUS.md State to ALL DONE → go to Phase 6
 - Else → update loop-stack/<LOOP_ID>/STATUS.md Current Task → continue loop
 
 ---
 
-## Phase 7 — Completion Report
+## Phase 6 — Completion Report
 
 Write `loop-stack/<LOOP_ID>/REPORT.md`:
 

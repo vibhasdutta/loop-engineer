@@ -3,7 +3,7 @@
 
   <h1>loop-engineer</h1>
 
-  <p>Answer 4 questions. A 6-agent team iterates until your goal is verified — across Claude Code and Codex CLI.</p>
+  <p>Answer 2 questions. A 6-agent team runs autonomously until your goal is done — no further input needed.</p>
 
   ![Version](https://img.shields.io/badge/version-1.0.0-0d9488?style=flat-square)
   ![Claude Code](https://img.shields.io/badge/Claude_Code-supported-1a1a2e?style=flat-square&logo=anthropic&logoColor=white)
@@ -17,19 +17,19 @@
 
 ## What it does
 
-You describe a goal and a stop condition. The skill breaks it into tasks, discovers your available tools and MCPs, then orchestrates a team of 6 agents — developer, QA tester, verifier, auditor, memory-keeper, and tool-scout — iterating until every task passes verification or the budget runs out. You step in only when something is stuck.
+You describe a goal. The skill breaks it into tasks, auto-discovers your available tools and MCPs, then orchestrates a team of 6 agents — tool-scout, developer, QA tester, verifier, auditor, and memory-keeper — iterating until every task passes verification or the 20-turn budget runs out. You only step in if something is critically blocked.
 
 Works on **Claude Code** (autonomous loop via Agent tool) and **OpenAI Codex CLI** (outputs a `codex /goal` command). Same wizard, same `loop-stack/` files, same 6 agents — different runtime.
 
-All state lives in `loop-stack/` so the loop survives context resets and can be resumed. A `MEMORY.md` file accumulates project learnings across iterations, making each run smarter than the last.
+All state lives in `loop-stack/<loop-id>/` — each loop gets its own namespaced directory so multiple loops can run in the same project without collision. A `MEMORY.md` accumulates learnings per loop, and a shared `loop-stack/.global/MEMORY.md` carries knowledge across all loops in the project.
 
 ---
 
-## Supported agents
+## Supported runtimes
 
-| Skill | Agent | How the loop runs |
+| Skill | Runtime | How the loop runs |
 |---|---|---|
-| `/loop-engineer` | **Claude Code** | Claude orchestrates agents autonomously via Agent tool |
+| `/loop-engineer` | **Claude Code** | Claude orchestrates 6 agents autonomously via Agent tool |
 | `/loop-engineer-codex` | **OpenAI Codex CLI** | Outputs `codex /goal` command — Codex runs the loop natively |
 
 ---
@@ -82,38 +82,67 @@ cd loop-engineer
 /loop-engineer-codex
 ```
 
-Both run the same wizard — 4 questions:
+The wizard asks **2 questions only**:
 
 ```
 Q1. What do you want the loop to accomplish?
-Q2. How do we verify success? (exact command — e.g. npm test exits 0)
-Q3. What's the budget? (e.g. 10 turns · $5 · 15 turns or $3)
-Q4. Auto-commit after each verified task? (yes / no)
+Q2. Auto-commit after each verified task? (yes / no)
 ```
 
-Then 2 smart follow-up questions are suggested based on your goal (answer or skip). After that — no further input needed.
+Everything else is automatic — stop condition, budget, context gathering, task decomposition, tool discovery. The loop runs to completion with no further input.
 
 ---
 
 ## How the loop works
 
-Each task goes through a fixed pipeline:
+```
+Phase 0  Resume check — finds existing loop-stack/<loop-id>/ dirs, offers resume or fresh start
+
+Phase 1  Wizard — 2 questions, auto-generates LOOP_ID from goal slug
+
+Phase 2  Task decomposition — 3–7 atomic tasks derived from your goal
+
+Phase 3  File generation — creates loop-stack/<loop-id>/ with PLAN, STATUS, MEMORY, TOOLS
+
+Phase 4  Tool discovery — tool-scout reads your MCPs, plugins, project tools (7-day global cache)
+
+Phase 5  Outer loop — per task:
+         Developer → QA Tester → Verifier → Auditor → Memory Keeper → next task
+
+Phase 6  Report — loop-stack/<loop-id>/REPORT.md written, summary printed
+```
+
+### The 6 agents
+
+| Agent | Role |
+|---|---|
+| **tool-scout** | Discovers MCPs, skills, plugins, project tools. Runs once. Results cached globally for 7 days. |
+| **developer** | Implements the current task. Reads MEMORY for context. Never marks tasks complete. |
+| **qa-tester** | Tests the implementation using real project tooling. Never writes application code. |
+| **verifier** | Runs the stop condition. Marks task done or failed in PLAN.md. Default stance: reject until proven. |
+| **auditor** | Reviews for security issues, tech debt, pattern violations. Pauses loop only on critical findings. |
+| **memory-keeper** | Distills learnings into loop MEMORY.md and the shared .global/MEMORY.md after each task. |
+
+### State files
 
 ```
-tool-scout (once) → discovers your MCPs, plugins, project tools → TOOLS.md
-
-Per task:
-Developer → QA Tester → Verifier → Auditor → Memory Keeper → next task
+loop-stack/
+  <loop-id>/          ← one dir per loop, no collisions
+    PLAN.md           ← goal + task checklist
+    STATUS.md         ← current state, attempts, last results
+    MEMORY.md         ← learnings accumulated this loop
+    TOOLS.md          ← discovered tools for this loop
+    REPORT.md         ← written on completion
+  .global/
+    MEMORY.md         ← cross-loop project learnings (shared)
+    TOOLS.md          ← cached tool discovery (7-day TTL)
 ```
 
-- **Verifier** runs the exact stop condition you gave — tasks only advance on a real pass
-- **Auditor** flags security issues, tech debt, pattern violations (pauses on critical)
-- **Memory Keeper** distills learnings into `loop-stack/MEMORY.md` after each task
-- **Failures** retry up to 3 times, then pause and ask you what to do
+### Failure handling
 
-A completion report is written to `loop-stack/REPORT.md` when done.
-
-→ [Full flow diagram and agent details](docs/how-it-works.md)
+- Verifier FAIL → retry up to 3 times → pause and ask user
+- Auditor BLOCK → pause loop, show issue, ask: fix / skip / stop
+- Budget reached (20 turns default) → stop and write partial report
 
 ---
 
@@ -123,7 +152,7 @@ A completion report is written to `loop-stack/REPORT.md` when done.
 |---|---|
 | [Installation](docs/installation.md) | All install methods — Claude Code, Codex CLI, plugin system, Windows |
 | [How It Works](docs/how-it-works.md) | Full flow, 6 agents, generated files, failure handling |
-| [Loop Engineering](docs/loop-engineering.md) | What loop engineering is, Ralph technique, maker/checker split, references |
+| [Loop Engineering](docs/loop-engineering.md) | What loop engineering is, maker/checker split, references |
 
 ---
 

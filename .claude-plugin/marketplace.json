@@ -1,4 +1,5 @@
 {
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "loop-engineer",
   "description": "Loop engineering wizard for Claude Code. Answer 3 questions and Claude orchestrates a maker/verifier agent loop until your goal is met.",
   "owner": {
@@ -9,7 +10,13 @@
     {
       "name": "loop-engineer",
       "description": "Loop engineering wizard for Claude Code. Answer 3 questions and Claude orchestrates a maker/verifier agent loop until your goal is met.",
-      "source": "./"
+      "version": "1.0.0",
+      "source": "./",
+      "category": "productivity",
+      "author": {
+        "name": "Vibhas Dutta",
+        "email": "dotdefence.info@gmail.com"
+      }
     }
   ]
 }
