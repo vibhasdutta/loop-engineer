@@ -16,18 +16,29 @@ You are running a loop engineering wizard. Follow these phases in order.
 
 ## Phase 0 — Resume Check
 
-Before anything else, check if `loop-stack/STATUS.md` exists in the current directory.
+Before anything else, scan for any `loop-stack/*/STATUS.md` files (subdirectory pattern) in the current directory.
 
-**If it exists:** Read it and tell the user:
-> "Found an existing loop in loop-stack/.
+**If none found:** continue to Phase 1.
+
+**If one found:** Read it and tell the user:
+> "Found an existing loop: loop-stack/{loop-id}/
 > State: {State}  |  Current task: {Current Task}  |  Progress: {Task Progress}
 >
 > Resume this loop or start fresh?"
 
-- **Resume** → skip to Phase 6 (Outer Loop) using existing files.
-- **Fresh** → delete `loop-stack/` and `.claude/agents/` from the previous run, continue to Phase 1.
+- **Resume** → skip to Phase 6 (Outer Loop) using existing files in `loop-stack/{loop-id}/`.
+- **Fresh** → delete that `loop-stack/<loop-id>/` directory and `.claude/agents/`, continue to Phase 1.
 
-**If it does not exist:** continue to Phase 1.
+**If multiple found:** List them all — show loop-id, State, and Progress for each:
+> "Found multiple existing loops:
+> 1. loop-stack/{loop-id-1}/ — State: {State} | Progress: {Task Progress}
+> 2. loop-stack/{loop-id-2}/ — State: {State} | Progress: {Task Progress}
+> ...
+>
+> Which loop do you want to resume? (enter a number) Or type 'fresh' to start a new loop."
+
+- **Number chosen** → resume that loop (skip to Phase 6 using that loop's files).
+- **Fresh** → continue to Phase 1.
 
 ---
 
@@ -38,9 +49,15 @@ Ask **one at a time**. Wait for the full answer before asking the next.
 **Q1 — Goal:**
 > "What do you want the loop to accomplish? (1-2 sentences)"
 
+After storing GOAL, generate LOOP_ID by slugifying GOAL:
+- lowercase, replace non-alphanumeric runs with hyphens, strip leading/trailing hyphens, max 40 chars
+- Example: "Add auth flow to API" → "add-auth-flow-to-api"
+
+Store as LOOP_ID.
+
 **Q2 — Stop condition:**
 > "How do we verify success? Give the exact command or condition that proves it's done.
-> Examples: `npm test exits 0` · `python -m pytest exits 0` · `all tasks in loop-stack/PLAN.md checked` · `CI green`"
+> Examples: `npm test exits 0` · `python -m pytest exits 0` · `all tasks in loop-stack/<LOOP_ID>/PLAN.md checked` · `CI green`"
 
 **Q3 — Budget:**
 > "What's the maximum budget before the loop stops?
@@ -50,7 +67,7 @@ Ask **one at a time**. Wait for the full answer before asking the next.
 > "Should the loop auto-commit after each verified task? (yes / no)
 > If yes, I'll commit: `loop: complete <task>`"
 
-Store: `GOAL`, `STOP_CONDITION`, `BUDGET_STRING`, `MAX_TURNS` (integer, default 20), `USE_GIT`.
+Store: `GOAL`, `LOOP_ID`, `STOP_CONDITION`, `BUDGET_STRING`, `MAX_TURNS` (integer, default 20), `USE_GIT`.
 
 ---
 
@@ -74,9 +91,11 @@ Derive 3–7 atomic, ordered, specific tasks from `GOAL` and any extra context. 
 
 ## Phase 4 — File Generation
 
-### loop-stack/ files
+### loop-stack/<LOOP_ID>/ files
 
-**loop-stack/PLAN.md:**
+Create the `loop-stack/<LOOP_ID>/` directory.
+
+**loop-stack/<LOOP_ID>/PLAN.md:**
 
     # Loop Plan
 
@@ -102,7 +121,7 @@ Derive 3–7 atomic, ordered, specific tasks from `GOAL` and any extra context. 
     - [ ] {TASK_3}
     (continue for all tasks)
 
-**loop-stack/STATUS.md:**
+**loop-stack/<LOOP_ID>/STATUS.md:**
 
     # Loop Status
 
@@ -133,7 +152,7 @@ Derive 3–7 atomic, ordered, specific tasks from `GOAL` and any extra context. 
     ## Blocked Reason
     (none)
 
-**loop-stack/MEMORY.md:**
+**loop-stack/<LOOP_ID>/MEMORY.md:**
 
     # Loop Memory
 
@@ -144,7 +163,7 @@ Derive 3–7 atomic, ordered, specific tasks from `GOAL` and any extra context. 
     ## Learnings
     (none yet — will be populated as the loop runs)
 
-**loop-stack/TOOLS.md:**
+**loop-stack/<LOOP_ID>/TOOLS.md:**
 
     # Discovered Tools
 
@@ -153,6 +172,14 @@ Derive 3–7 atomic, ordered, specific tasks from `GOAL` and any extra context. 
 
     ## Status
     PENDING — tool-scout has not run yet
+
+Initialize global memory if needed:
+- If `loop-stack/.global/MEMORY.md` does not exist, create it:
+
+      # Global Loop Memory
+      Cross-loop project learnings. Written by memory-keeper after each task.
+      ## Learnings
+      (none yet)
 
 ### .claude/agents/ files
 
@@ -177,12 +204,12 @@ Then write **only** `verifier.md` — substituting the actual STOP_CONDITION (ne
     You are the verifier agent.
 
     Steps:
-    1. Read loop-stack/MEMORY.md — check for known verification gotchas.
-    2. Read loop-stack/STATUS.md and loop-stack/PLAN.md.
+    1. Read loop-stack/<LOOP_ID>/MEMORY.md — check for known verification gotchas.
+    2. Read loop-stack/<LOOP_ID>/STATUS.md and loop-stack/<LOOP_ID>/PLAN.md.
     3. Run: {STOP_CONDITION}
     4. If PASSES:
-       - Set loop-stack/STATUS.md State to VERIFIED_PASS
-       - Mark current task done in loop-stack/PLAN.md (- [ ] → - [x])
+       - Set loop-stack/<LOOP_ID>/STATUS.md State to VERIFIED_PASS
+       - Mark current task done in loop-stack/<LOOP_ID>/PLAN.md (- [ ] → - [x])
        - Update Task Progress count
        - If no unchecked tasks remain: set State to ALL DONE
     5. If FAILS:
@@ -193,7 +220,8 @@ Then write **only** `verifier.md` — substituting the actual STOP_CONDITION (ne
 
 After copying/writing all files, confirm:
 
-> "loop-stack/ created: PLAN.md · STATUS.md · MEMORY.md · TOOLS.md
+> "loop-stack/<LOOP_ID>/ created: PLAN.md · STATUS.md · MEMORY.md · TOOLS.md
+> loop-stack/.global/ initialized: MEMORY.md
 > .claude/agents/ ready: tool-scout · developer · qa-tester · verifier · auditor · memory-keeper
 > Starting loop..."
 
@@ -205,12 +233,15 @@ Before the main loop, spawn the tool-scout agent once:
 
 Prompt:
 ```
-Read loop-stack/PLAN.md to understand the goal.
-Discover all available tools, MCPs, plugins, and skills on this system.
-Write loop-stack/TOOLS.md. Follow .claude/agents/tool-scout.md instructions.
+Loop directory: loop-stack/<LOOP_ID>/
+Read loop-stack/<LOOP_ID>/PLAN.md to understand the goal.
+Check loop-stack/.global/TOOLS.md:
+- If it exists and was modified less than 7 days ago: copy its content to loop-stack/<LOOP_ID>/TOOLS.md and skip discovery (write Status: REUSED FROM GLOBAL)
+- Otherwise: discover all available tools, MCPs, plugins, and skills. Write results to BOTH loop-stack/<LOOP_ID>/TOOLS.md AND loop-stack/.global/TOOLS.md (overwrite global).
+Follow .claude/agents/tool-scout.md instructions.
 ```
 
-After tool-scout completes, read `loop-stack/TOOLS.md` and show the user:
+After tool-scout completes, read `loop-stack/<LOOP_ID>/TOOLS.md` and show the user:
 
 > "Tools discovered:
 > {list of recommended tools for this goal}
@@ -227,10 +258,10 @@ You (Claude, main session) are the outer loop controller.
 
 **Initialize:**
 - `turns_used = 0`
-- Read `loop-stack/PLAN.md` → `total_tasks`
-- `done_tasks = count of [x] tasks in PLAN.md`
+- Read `loop-stack/<LOOP_ID>/PLAN.md` → `total_tasks`
+- `done_tasks = count of [x] tasks in loop-stack/<LOOP_ID>/PLAN.md`
 
-**Loop condition:** Continue while loop-stack/STATUS.md State ≠ `ALL DONE`.
+**Loop condition:** Continue while loop-stack/<LOOP_ID>/STATUS.md State ≠ `ALL DONE`.
 
 **Each iteration — print first:**
 > `[Task {done_tasks + 1}/{total_tasks} — {pct}% | Turn {turns_used + 1}/{MAX_TURNS}]`
@@ -240,11 +271,12 @@ If `turns_used >= MAX_TURNS`:
 - Stop. Report budget reached. Go to Phase 7.
 
 ### Step 2 — Read state
-Read `loop-stack/STATUS.md` → `current_task`, `attempts`, last results.
+Read `loop-stack/<LOOP_ID>/STATUS.md` → `current_task`, `attempts`, last results.
 
 ### Step 3 — Spawn DEVELOPER
 ```
-Read loop-stack/MEMORY.md, TOOLS.md, PLAN.md, STATUS.md.
+Loop directory: loop-stack/<LOOP_ID>/
+Read loop-stack/<LOOP_ID>/MEMORY.md, loop-stack/<LOOP_ID>/TOOLS.md, loop-stack/<LOOP_ID>/PLAN.md, loop-stack/<LOOP_ID>/STATUS.md.
 Current task: {current_task}
 Previous attempt result: {Last Developer Result}
 Implement. Follow .claude/agents/developer.md.
@@ -253,28 +285,31 @@ Increment `turns_used`.
 
 ### Step 4 — Spawn QA TESTER
 ```
+Loop directory: loop-stack/<LOOP_ID>/
 Current task just implemented: {current_task}
-Run QA checks using tools from loop-stack/TOOLS.md.
+Run QA checks using tools from loop-stack/<LOOP_ID>/TOOLS.md.
 Follow .claude/agents/qa-tester.md.
 ```
 
 ### Step 5 — Spawn VERIFIER
 ```
+Loop directory: loop-stack/<LOOP_ID>/
 Current task: {current_task}
-Run stop condition and update loop-stack/. Follow .claude/agents/verifier.md.
+Run stop condition and update loop-stack/<LOOP_ID>/. Follow .claude/agents/verifier.md.
 ```
 
 ### Step 6 — Read verifier result
 
 **If State == FAILED:**
-- Increment attempts in STATUS.md
+- Increment attempts in loop-stack/<LOOP_ID>/STATUS.md
 - If attempts >= 3 → PAUSE, ask user: retry / skip / stop
-- Else → continue loop with failure context in STATUS.md
+- Else → continue loop with failure context in loop-stack/<LOOP_ID>/STATUS.md
 
 **If State == VERIFIED_PASS:**
 
 ### Step 7 — Spawn AUDITOR
 ```
+Loop directory: loop-stack/<LOOP_ID>/
 Task just verified: {current_task}
 Review for quality. Follow .claude/agents/auditor.md.
 ```
@@ -288,6 +323,7 @@ Review for quality. Follow .claude/agents/auditor.md.
 
 ### Step 9 — Spawn MEMORY KEEPER
 ```
+Loop directory: loop-stack/<LOOP_ID>/
 Task just completed and audited: {current_task}
 Distill learnings. Follow .claude/agents/memory-keeper.md.
 ```
@@ -295,16 +331,16 @@ Distill learnings. Follow .claude/agents/memory-keeper.md.
 ### Step 10 — Advance
 - Increment `done_tasks`
 - Reset attempts to 0
-- If `USE_GIT`: commit `loop-stack/PLAN.md` + `loop-stack/STATUS.md` with `loop: verified {current_task}`
-- Find next unchecked task in PLAN.md
-- If none → update STATUS.md State to ALL DONE → go to Phase 7
-- Else → update STATUS.md Current Task → continue loop
+- If `USE_GIT`: commit `loop-stack/<LOOP_ID>/PLAN.md` + `loop-stack/<LOOP_ID>/STATUS.md` with `loop: verified {current_task}`
+- Find next unchecked task in loop-stack/<LOOP_ID>/PLAN.md
+- If none → update loop-stack/<LOOP_ID>/STATUS.md State to ALL DONE → go to Phase 7
+- Else → update loop-stack/<LOOP_ID>/STATUS.md Current Task → continue loop
 
 ---
 
 ## Phase 7 — Completion Report
 
-Write `loop-stack/REPORT.md`:
+Write `loop-stack/<LOOP_ID>/REPORT.md`:
 
     # Loop Report
 
@@ -324,10 +360,10 @@ Write `loop-stack/REPORT.md`:
     {list}
 
     ## Tools Used
-    {from loop-stack/TOOLS.md — recommended tools}
+    {from loop-stack/<LOOP_ID>/TOOLS.md — recommended tools}
 
     ## Key Learnings
-    {from loop-stack/MEMORY.md — all accumulated learnings}
+    {from loop-stack/<LOOP_ID>/MEMORY.md — all accumulated learnings}
 
     ## Git Integration
     {yes / no — commits made: N}
@@ -337,8 +373,8 @@ Print to user:
     ## Loop Complete
     Outcome: {outcome}
     Tasks: {done_tasks}/{total_tasks} | Turns: {turns_used}/{MAX_TURNS}
-    Learnings saved: loop-stack/MEMORY.md
-    Full report: loop-stack/REPORT.md
+    Learnings saved: loop-stack/<LOOP_ID>/MEMORY.md
+    Full report: loop-stack/<LOOP_ID>/REPORT.md
 
 ---
 
@@ -348,6 +384,8 @@ Print to user:
 - Tool-scout runs once before the main loop — never skip it.
 - Memory-keeper runs after every auditor pass — this is what makes the loop smarter.
 - Never write literal placeholders like `{STOP_CONDITION}` into generated files.
-- All state files live in `loop-stack/`. All agent definitions live in `.claude/agents/`.
+- All state files live in `loop-stack/<LOOP_ID>/`. All agent definitions live in `.claude/agents/`.
 - Never exceed MAX_TURNS without stopping and reporting.
 - All agents must read MEMORY.md and TOOLS.md before acting.
+- Each loop runs in its own `loop-stack/<LOOP_ID>/` directory — never read/write another loop's files.
+- Global files (`loop-stack/.global/`) are shared across all loops — always check them before running tool discovery or starting fresh.
