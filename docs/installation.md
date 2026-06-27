@@ -11,6 +11,14 @@
 
 ## Claude Code
 
+### Plugin system (recommended — auto-updates)
+
+```bash
+claude plugin add https://github.com/vibhasdutta/loop-engineer
+```
+
+Installs via the Claude Code plugin system and auto-updates when new versions are published.
+
 ### One-liner (macOS / Linux)
 
 ```bash
@@ -23,30 +31,6 @@ curl -s https://raw.githubusercontent.com/vibhasdutta/loop-engineer/main/install
 git clone https://github.com/vibhasdutta/loop-engineer.git
 cd loop-engineer
 .\install.ps1
-```
-
-### Plugin system (recommended — auto-updates)
-
-Paste into your Claude Code session:
-
-> Add `loop-engineer` from `https://github.com/vibhasdutta/loop-engineer.git` to my Claude Code plugins and enable it.
-
-Or add manually to `~/.claude/settings.json`:
-
-```json
-{
-  "extraKnownMarketplaces": {
-    "loop-engineer-market": {
-      "source": {
-        "source": "git",
-        "url": "https://github.com/vibhasdutta/loop-engineer.git"
-      }
-    }
-  },
-  "enabledPlugins": {
-    "loop-engineer@loop-engineer-market": true
-  }
-}
 ```
 
 ### Manual (macOS / Linux)
