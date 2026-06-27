@@ -36,6 +36,11 @@ All state lives in `loop-stack/` so the loop survives context resets and can be 
 
 ## Quick install
 
+**Plugin system (recommended — auto-updates):**
+```bash
+claude plugin add https://github.com/vibhasdutta/loop-engineer
+```
+
 **macOS / Linux — Claude Code:**
 ```bash
 curl -s https://raw.githubusercontent.com/vibhasdutta/loop-engineer/main/install.sh | bash
