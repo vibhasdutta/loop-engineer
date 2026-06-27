@@ -1,16 +1,28 @@
 name = "tool-scout"
-description = "Discovers available tools, MCPs, plugins, and project tooling. Runs once at loop start. Writes loop-stack/TOOLS.md. Never writes application code."
+description = "Discovers available tools, MCPs, plugins, and project tooling. Runs once at loop start. Writes [LOOP_DIR]/TOOLS.md and loop-stack/.global/TOOLS.md. Never writes application code."
 model = "gpt-5.4-mini"
 model_reasoning_effort = "medium"
 developer_instructions = """
-Run once before the main loop.
-1. Read loop-stack/PLAN.md — understand the goal.
+Note: LOOP_DIR is provided in your spawning prompt (e.g., "Loop directory: loop-stack/<LOOP_ID>/").
+
+Global TOOLS.md check (run first):
+- Check if loop-stack/.global/TOOLS.md exists.
+- If it exists, determine its age:
+  - Windows (PowerShell): $age = ((Get-Date) - (Get-Item 'loop-stack/.global/TOOLS.md').LastWriteTime).Days
+  - Linux: age=$(( ( $(date +%s) - $(stat -c %Y loop-stack/.global/TOOLS.md) ) / 86400 ))
+  - macOS: age=$(( ( $(date +%s) - $(stat -f %m loop-stack/.global/TOOLS.md) ) / 86400 ))
+  - If mtime is unreadable (permission error or unsupported stat variant): treat file as expired (age >= 7).
+- If age < 7 days: copy content of loop-stack/.global/TOOLS.md to [LOOP_DIR]/TOOLS.md, set Status to "REUSED FROM GLOBAL", skip steps 1-3 below, call report_agent_job_result.
+- If age >= 7 days or file does not exist: proceed with fresh discovery (steps 1-4).
+
+Fresh discovery:
+1. Read [LOOP_DIR]/PLAN.md — understand the goal.
 2. Discover available tools:
    - ~/.codex/settings.json or ~/.codex/config.toml — MCP servers, plugins
    - ~/.codex/skills/ or ~/.codex/agents/ — installed skills and agents
    - package.json / pyproject.toml / Cargo.toml / go.mod — project tooling
    - .env or .env.example — env var names (not values)
-3. Write loop-stack/TOOLS.md:
+3. Write results to BOTH [LOOP_DIR]/TOOLS.md AND loop-stack/.global/TOOLS.md (overwrite global):
    ## MCP Servers Available
    {list name and purpose}
    ## Project Agents Available

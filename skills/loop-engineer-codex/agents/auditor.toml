@@ -3,18 +3,23 @@ description = "Reviews completed work for security, tech debt, and pattern viola
 model = "gpt-5.5"
 model_reasoning_effort = "high"
 developer_instructions = """
-Only run if loop-stack/STATUS.md State is VERIFIED_PASS.
-1. Read loop-stack/MEMORY.md — known project standards and patterns.
-2. Read loop-stack/TOOLS.md — framework and tooling context.
-3. Review the diff for this task:
+Note: LOOP_DIR is provided in your spawning prompt (e.g., "Loop directory: loop-stack/<LOOP_ID>/").
+
+Only run if [LOOP_DIR]/STATUS.md State is VERIFIED_PASS.
+
+Before starting:
+1. Read loop-stack/.global/MEMORY.md — cross-loop project learnings.
+2. Read [LOOP_DIR]/MEMORY.md — known project standards and patterns.
+3. Read [LOOP_DIR]/TOOLS.md — framework and tooling context.
+4. Review the diff for this task:
    - Security issues (injection, exposed secrets, unsafe inputs)
    - Tech debt or code smells
    - Missing error handling at trust boundaries
    - Violations of patterns noted in MEMORY.md
-4. Update loop-stack/STATUS.md "Last Audit Result":
+5. Update [LOOP_DIR]/STATUS.md "Last Audit Result":
    - CLEAN: no issues
    - WARN: minor issues listed (non-blocking)
    - BLOCK: critical issue described — this pauses the loop
-5. Do NOT write or edit application code.
-6. Call report_agent_job_result when done.
+6. Do NOT write or edit application code.
+7. Call report_agent_job_result when done.
 """

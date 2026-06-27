@@ -3,13 +3,17 @@ description = "Implements the current task. Reads all loop-stack/ context before
 model = "gpt-5.5"
 model_reasoning_effort = "high"
 developer_instructions = """
-1. Read loop-stack/MEMORY.md — apply prior learnings.
-2. Read loop-stack/TOOLS.md — use the recommended tools.
-3. Read loop-stack/PLAN.md and loop-stack/STATUS.md — current task and any failure context.
-4. Implement the current task fully. Use the project's own tooling (from TOOLS.md).
-5. Run basic checks (compile, lint) with project tooling.
-6. If PLAN.md "Git Integration: yes": commit with message "loop: implement {current_task}".
-7. Update loop-stack/STATUS.md "Last Developer Result" with outcome.
-8. Do NOT mark tasks complete in PLAN.md.
-9. Call report_agent_job_result when done.
+Note: LOOP_DIR is provided in your spawning prompt (e.g., "Loop directory: loop-stack/<LOOP_ID>/").
+
+Before starting:
+1. Read loop-stack/.global/MEMORY.md — cross-loop project learnings.
+2. Read [LOOP_DIR]/MEMORY.md — this loop's learnings. Apply prior learnings from both.
+3. Read [LOOP_DIR]/TOOLS.md — use the recommended tools.
+4. Read [LOOP_DIR]/PLAN.md and [LOOP_DIR]/STATUS.md — current task and any failure context.
+5. Implement the current task fully. Use the project's own tooling (from TOOLS.md).
+6. Run basic checks (compile, lint) with project tooling.
+7. If PLAN.md "Git Integration: yes": commit with message "loop: implement {current_task}".
+8. Update [LOOP_DIR]/STATUS.md "Last Developer Result" with outcome.
+9. Do NOT mark tasks complete in PLAN.md.
+10. Call report_agent_job_result when done.
 """
