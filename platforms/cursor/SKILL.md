@@ -1,14 +1,14 @@
 ---
 name: loop-engineer
 description: >
-  Loop engineering wizard. Asks questions, discovers available
-  tools and MCPs, scaffolds a 7-agent team (tool-scout, researcher, developer,
-  qa-tester, verifier, auditor, memory-keeper), and orchestrates a fully
-  autonomous loop until the goal is met. Supports resume, persistent memory,
-  git integration, and generates a completion report.
+  Loop engineering wizard for Cursor. Asks 2 questions, then orchestrates
+  a fully autonomous parallel agent team (tool-scout, researcher, planner,
+  developer, qa-tester, verifier, auditor, memory-keeper) until the goal is met.
+  Multiple agents run in parallel — dynamic researcher count, multiple developers
+  on independent parts simultaneously. Persistent memory, git integration, resume support.
 ---
 
-# Loop Engineer
+# Loop Engineer (Cursor)
 
 You are running a loop engineering wizard. Follow these phases in order.
 
@@ -16,428 +16,247 @@ You are running a loop engineering wizard. Follow these phases in order.
 
 ## Phase 0 — Resume Check
 
-Before anything else, scan for any `loop-stack/*/STATUS.md` files in the current directory.
-**Skip any directory whose name ends with `_DONE` — those loops are already complete.**
+Scan for `loop-stack/*/STATUS.md`. **Skip any directory ending with `_DONE`.**
 
-**If none found (excluding `_DONE` folders):** continue to Phase 1.
-
-**If one found:** Read it and tell the user:
-> "Found an existing loop: loop-stack/{loop-id}/
-> State: {State}  |  Current task: {Current Task}  |  Progress: {Task Progress}
->
-> Resume this loop or start fresh?"
-
-- **Resume** → skip to Phase 5 (Outer Loop) using existing files in `loop-stack/{loop-id}/`.
-- **Fresh** → delete only `loop-stack/<loop-id>/` directory (do NOT delete `.cursor/agents/` — those are shared across loops), continue to Phase 1.
-
-**If multiple found:** List them all — show loop-id, State, and Progress for each:
-> "Found multiple existing loops:
-> 1. loop-stack/{loop-id-1}/ — State: {State} | Progress: {Task Progress}
-> 2. loop-stack/{loop-id-2}/ — State: {State} | Progress: {Task Progress}
-> ...
->
-> Which loop do you want to resume? (enter a number) Or type 'fresh' to start a new loop."
-
-- **Number chosen** → resume that loop (skip to Phase 5 using that loop's files).
-- **Fresh** → continue to Phase 1.
+**None found:** continue to Phase 1.
+**One found:** show State/Current Task/Progress, ask: Resume or Fresh?
+- Resume → skip to Phase 5 using existing files.
+- Fresh → delete `loop-stack/<loop-id>/` only (keep `.cursor/agents/`), continue to Phase 1.
+**Multiple found:** list all, ask which to resume or type 'fresh'.
 
 ---
 
 ## Phase 1 — Core Wizard
 
-Ask **one at a time**. Wait for the full answer before asking the next.
+**Q1:** "What do you want the loop to accomplish? (1-2 sentences)"
 
-**Q1 — Goal:**
-> "What do you want the loop to accomplish? (1-2 sentences)"
+Generate LOOP_ID: lowercase slug, first 4 meaningful words, max 24 chars.
+Auto-set: `STOP_CONDITION` = "all tasks in loop-stack/<LOOP_ID>/PLAN.md checked", `MAX_TURNS` = 20.
 
-After storing GOAL, generate LOOP_ID by slugifying GOAL:
-- lowercase, replace non-alphanumeric runs with hyphens, strip leading/trailing hyphens
-- Take only the first 4 meaningful words (skip stop words: a, an, the, to, for, of, in, on, with, and, or)
-- Truncate to **24 chars max**, strip any trailing hyphen
-- Example: "Add authentication flow to the REST API" → "add-auth-flow-api"
-- If the resulting LOOP_ID is empty, use timestamp fallback: `loop-` + `YYYYMMDD-HHMMSS`.
-
-Store as LOOP_ID.
-
-Auto-set without asking:
-- `STOP_CONDITION` = "all tasks in loop-stack/<LOOP_ID>/PLAN.md checked"
-- `BUDGET_STRING` = "20 turns"
-- `MAX_TURNS` = 20
-
-**Q2 — Git integration:**
-> "Should the loop auto-commit after each verified task? (yes / no)
-> If yes, I'll commit: `loop: complete <task>`"
-
-Store: `GOAL`, `LOOP_ID`, `STOP_CONDITION`, `BUDGET_STRING`, `MAX_TURNS`, `USE_GIT`.
+**Q2:** "Should the loop auto-commit after each verified task? (yes / no)"
 
 ---
 
-## Phase 2 — Task Decomposition
+## Phase 2 — State File Creation
 
-Derive 3–7 atomic, ordered, specific tasks from `GOAL`. Do not ask the user.
+Create `loop-stack/<LOOP_ID>/` with:
 
----
-
-## Phase 3 — File Generation
-
-### loop-stack/<LOOP_ID>/ files
-
-Create the `loop-stack/<LOOP_ID>/` directory.
-
-**loop-stack/<LOOP_ID>/PLAN.md:**
+**PLAN.md** (task stub — planner fills in Phase 4):
 
     # Loop Plan
-
     ## Goal
     {GOAL}
-
     ## Stop Condition
     {STOP_CONDITION}
-
     ## Budget
-    {BUDGET_STRING}
-
+    20 turns
     ## Git Integration
     {yes / no}
-
     ## Tasks
-    - [ ] {TASK_1}
-    - [ ] {TASK_2}
-    - [ ] {TASK_3}
-    (continue for all tasks)
+    (will be created by the planner agent)
 
-**loop-stack/<LOOP_ID>/STATUS.md:**
+**STATUS.md:**
 
     # Loop Status
-
     ## State
     IN_PROGRESS
-
     ## Current Task
-    {TASK_1}
-
+    (planning in progress)
     ## Task Progress
-    0 / {N} complete
-
+    0 / ? complete
     ## Attempts On Current Task
     0
-
     ## Completed Tasks
     (none)
-
     ## Skipped Tasks
     (none)
-
     ## Last Researcher Result
     (none)
-
     ## Last Developer Result
     (none)
-
     ## Last QA Result
     (none)
-
     ## Last Audit Result
     (none)
-
     ## Blocked Reason
     (none)
 
-**loop-stack/<LOOP_ID>/MEMORY.md:**
+**MEMORY.md:** `# Loop Memory\nUpdated continuously by all agents.\n## Learnings\n(none yet)`
+**TOOLS.md:** `# Discovered Tools\n## Status\nPENDING`
+**RESEARCH.md:** `# Research Log\n## Architecture & Code Patterns\n(pending)\n## Domain Knowledge & APIs\n(pending)\n## Task-Specific Research\n(pending)`
 
-    # Loop Memory
-
-    This file is written by the memory-keeper agent after each verified task.
-    All agents should read this at the start of their instructions.
-    It accumulates project-specific learnings that make the loop smarter over time.
-
-    ## Learnings
-    (none yet — will be populated as the loop runs)
-
-**loop-stack/<LOOP_ID>/TOOLS.md:**
-
-    # Discovered Tools
-
-    This file is written by the tool-scout agent before the loop starts.
-    All agents should check this to know what tools are available.
-
-    ## Status
-    PENDING — tool-scout has not run yet
-
-**loop-stack/<LOOP_ID>/RESEARCH.md:**
-
-    # Research Log
-
-    Written by the researcher agent before each task.
-    Developer reads this before implementing.
-
-    ## Current Task Research
-    (none yet)
-
-Initialize global memory if needed:
-- If `loop-stack/.global/MEMORY.md` does not exist, create it:
-
-      # Global Loop Memory
-      Cross-loop project learnings. Written by memory-keeper after each task.
-      ## Learnings
-      (none yet)
-
-### .cursor/agents/ files
-
-Create `.cursor/agents/` if it does not exist.
-
-Copy the 6 pre-built agent files from `~/.cursor/skills/loop-engineer/agents/` into `.cursor/agents/`:
-- `tool-scout.md`
-- `researcher.md`
-- `developer.md`
-- `qa-tester.md`
-- `auditor.md`
-- `memory-keeper.md`
-
-Then write **only** `verifier.md` — substituting the actual STOP_CONDITION (never write the literal placeholder):
-
-**`.cursor/agents/verifier.md`:**
-
-    ---
-    name: verifier
-    description: Runs the stop condition. Marks tasks done or failed in loop-stack/. Never writes application code.
-    ---
-
-    You are the verifier agent.
-
-    Steps:
-    1. Read loop-stack/.global/MEMORY.md (if exists) FIRST — check for cross-loop verification gotchas.
-    2. Read [LOOP_DIR]/MEMORY.md — check for known verification gotchas in this loop.
-    3. Read [LOOP_DIR]/STATUS.md and [LOOP_DIR]/PLAN.md.
-    4. Run: {STOP_CONDITION}
-    5. If PASSES:
-       - Set [LOOP_DIR]/STATUS.md State to VERIFIED_PASS
-       - Mark current task done in [LOOP_DIR]/PLAN.md (- [ ] → - [x])
-       - Update Task Progress count
-       - If no unchecked tasks remain: set State to ALL DONE
-    6. If FAILS:
-       - Set State to FAILED
-       - Write exact error to Last Developer Result
-    HARD RULE: Never write or edit application code.
-    HARD RULE: Never mark done unless verification actually passed.
-
-After copying/writing all files, confirm:
-
-> "loop-stack/<LOOP_ID>/ created: PLAN.md · STATUS.md · MEMORY.md · TOOLS.md · RESEARCH.md
-> loop-stack/.global/ initialized: MEMORY.md
-> .cursor/agents/ ready: tool-scout · researcher · developer · qa-tester · verifier · auditor · memory-keeper
-> Starting loop..."
+Create `loop-stack/.global/MEMORY.md` if missing.
 
 ---
 
-## Phase 4 — Tool Discovery Run
+## Phase 3 — Agent File Setup
 
-Before the main loop, spawn the tool-scout agent once:
+**CRITICAL: Use shell commands — do NOT write agent files manually.**
 
-Prompt:
+**Bash (macOS/Linux):**
+```bash
+mkdir -p .cursor/agents
+cp ~/.cursor/skills/loop-engineer/agents/tool-scout.md .cursor/agents/
+cp ~/.cursor/skills/loop-engineer/agents/researcher.md .cursor/agents/
+cp ~/.cursor/skills/loop-engineer/agents/planner.md .cursor/agents/
+cp ~/.cursor/skills/loop-engineer/agents/developer.md .cursor/agents/
+cp ~/.cursor/skills/loop-engineer/agents/qa-tester.md .cursor/agents/
+cp ~/.cursor/skills/loop-engineer/agents/auditor.md .cursor/agents/
+cp ~/.cursor/skills/loop-engineer/agents/memory-keeper.md .cursor/agents/
+```
+
+**PowerShell (Windows):**
+```powershell
+New-Item -ItemType Directory -Force .cursor\agents | Out-Null
+Copy-Item "$env:USERPROFILE\.cursor\skills\loop-engineer\agents\*.md" ".cursor\agents\"
+```
+
+Then write only `verifier.md` with actual STOP_CONDITION substituted:
+
+    ---
+    name: verifier
+    description: Runs the stop condition. Marks tasks done or failed. Never writes application code.
+    ---
+    1. Read loop-stack/.global/MEMORY.md FIRST.
+    2. Read [LOOP_DIR]/MEMORY.md, STATUS.md, PLAN.md.
+    3. Run: {STOP_CONDITION}
+    4. PASSES → State VERIFIED_PASS, mark [x], update Task Progress. All done → ALL DONE.
+    5. FAILS → State FAILED, write exact error to Last Developer Result.
+    HARD RULE: Never write application code. Never mark done unless verification passed.
+
+Confirm: > ".cursor/agents/ ready · loop-stack/<LOOP_ID>/ created · Starting startup sequence..."
+
+---
+
+## Phase 4 — Startup Sequence
+
+### Step 1 — Parallel RESEARCHERS (dynamic count)
+
+Determine researcher count by goal complexity:
+- Simple/single-domain → 2
+- Medium/multi-domain → 3
+- Large/multi-system → 4
+
+**Spawn all simultaneously** (call Agent tool N times in one response).
+
+Divide domains across researchers:
+- **Architecture & Code**: source structure, patterns, package.json/pyproject.toml/go.mod, tests
+- **Domain & APIs**: README, docs/, external APIs, .env.example, configs, integrations
+- **Data & State**: DB schema, data models, state management (for 3+ researchers)
+- **Deployment & Config**: CI/CD, infrastructure, build, Docker (for 4 researchers)
+
+Each researcher prompt:
 ```
 Loop directory: loop-stack/<LOOP_ID>/
-IMPORTANT: Read loop-stack/.global/MEMORY.md FIRST — apply any cross-loop project learnings.
-Read loop-stack/<LOOP_ID>/PLAN.md to understand the goal.
-Check loop-stack/.global/TOOLS.md BEFORE any discovery:
-- If it exists and was modified less than 7 days ago: copy its content to loop-stack/<LOOP_ID>/TOOLS.md and skip discovery (write Status: REUSED FROM GLOBAL)
-- Otherwise: discover all available tools, MCPs, plugins, and skills. Write results to BOTH loop-stack/<LOOP_ID>/TOOLS.md AND loop-stack/.global/TOOLS.md (overwrite global).
-Follow .cursor/agents/tool-scout.md instructions.
+Focus: {ASSIGNED_DOMAIN} — {specific files and concerns}
+GLOBAL DATA FIRST: read loop-stack/.global/MEMORY.md and loop-stack/.global/TOOLS.md.
+Write findings to loop-stack/<LOOP_ID>/RESEARCH.md under "## {Domain Name}".
+Update STATUS.md "Last Researcher Result".
+Follow .cursor/agents/researcher.md.
 ```
 
-Auto-continue into the outer loop immediately after tool-scout completes — no user confirmation needed.
+Wait for ALL to complete.
+
+### Step 2 — TOOL SCOUT
+
+```
+Loop directory: loop-stack/<LOOP_ID>/
+Check loop-stack/.global/TOOLS.md — if < 7 days old, reuse. Otherwise discover all tools.
+Write to loop-stack/<LOOP_ID>/TOOLS.md AND loop-stack/.global/TOOLS.md.
+Follow .cursor/agents/tool-scout.md.
+```
+
+### Step 3 — PLANNER
+
+```
+Loop directory: loop-stack/<LOOP_ID>/
+Read RESEARCH.md (all sections) and TOOLS.md.
+Create 3–7 tasks with parallel group tags [G1], [G2], etc.
+Same group = can run in parallel (independent files/modules).
+Different group = sequential dependency.
+Example:
+  - [ ] [G1] Set up project config and database schema
+  - [ ] [G2] Implement API authentication endpoints
+  - [ ] [G2] Implement user profile frontend component
+  - [ ] [G3] Integration tests
+Replace "## Tasks" in PLAN.md. Update STATUS.md.
+Follow .cursor/agents/planner.md.
+```
+
+Auto-continue into outer loop.
 
 ---
 
 ## Phase 5 — Outer Loop
 
-You (the AI, main session) are the outer loop controller.
-**FULLY AUTONOMOUS — never pause for user input during the loop. Handle all failures automatically.**
+**FULLY AUTONOMOUS. Never pause for user input.**
 
-**Initialize:**
-- `turns_used = 0`
-- `skipped_tasks = []`
-- Read `loop-stack/<LOOP_ID>/PLAN.md` → `total_tasks`
-- `done_tasks = count of [x] tasks in loop-stack/<LOOP_ID>/PLAN.md`
+Initialize: `turns_used = 0`, `skipped_tasks = []`, read total_tasks.
 
-**Loop condition:** Continue while loop-stack/<LOOP_ID>/STATUS.md State ≠ `ALL DONE`.
+Print per iteration: `[Task {done+1}/{total} — {pct}% | Turn {turn}/{MAX_TURNS}]`
 
-**Each iteration — print first:**
-> `[Task {done_tasks + 1}/{total_tasks} — {pct}% | Turn {turns_used + 1}/{MAX_TURNS}]`
+### Step 1 — Budget check → over MAX_TURNS → Phase 6.
 
-### Step 1 — Budget check
-If `turns_used >= MAX_TURNS`:
-- Stop. Report budget reached. Go to Phase 6.
+### Step 2 — Read state. Identify current parallel group (all unchecked [GN] tasks).
 
-### Step 2 — Read state
-Read `loop-stack/<LOOP_ID>/STATUS.md` → `current_task`, `attempts`, last results.
+### Step 3 — Parallel RESEARCHERS
+Spawn one per task in batch (2 if batch=1, more if task is complex). Each appends to RESEARCH.md. Wait for all. Increment turns_used.
 
-### Step 2.5 — Spawn RESEARCHER
+### Step 4 — Parallel DEVELOPERS
+Spawn one per task simultaneously:
 ```
 Loop directory: loop-stack/<LOOP_ID>/
-GLOBAL DATA FIRST — read these before anything else:
-  - loop-stack/.global/MEMORY.md — cross-loop learnings (check for prior research on similar tasks)
-  - loop-stack/.global/TOOLS.md — global tool cache
-Then read loop-stack/<LOOP_ID>/MEMORY.md, loop-stack/<LOOP_ID>/TOOLS.md, loop-stack/<LOOP_ID>/PLAN.md.
-Current task: {current_task}
-Research what the developer needs. Write findings to loop-stack/<LOOP_ID>/RESEARCH.md.
-Update STATUS.md "Last Researcher Result" with a one-line summary.
-Follow .cursor/agents/researcher.md.
+GLOBAL DATA FIRST — read loop-stack/.global/MEMORY.md AND loop-stack/.global/TOOLS.md.
+Read MEMORY.md, TOOLS.md, PLAN.md, STATUS.md.
+READ: RESEARCH.md section "## Task-Specific Research — {this_task}".
+Current task: {this_task}. Scope: only files for this task.
+Implement. Append discoveries directly to MEMORY.md. Update STATUS.md.
+Follow .cursor/agents/developer.md.
 ```
-Increment `turns_used`.
+Wait for all. Increment turns_used.
 
-### Step 3 — Spawn DEVELOPER
-```
-Loop directory: loop-stack/<LOOP_ID>/
-GLOBAL DATA FIRST — read these before writing any code:
-  - loop-stack/.global/MEMORY.md — cross-loop project learnings (apply patterns found here)
-  - loop-stack/.global/TOOLS.md — cross-loop tool cache
-Then read loop-stack/<LOOP_ID>/MEMORY.md, loop-stack/<LOOP_ID>/TOOLS.md, loop-stack/<LOOP_ID>/PLAN.md, loop-stack/<LOOP_ID>/STATUS.md.
-READ THIS BEFORE CODING: loop-stack/<LOOP_ID>/RESEARCH.md — researcher's findings and suggested approach for this task.
-Current task: {current_task}
-Last Researcher Result: {Last Researcher Result from STATUS.md}
-Previous attempt result: {Last Developer Result from STATUS.md}
-Implement. Follow .cursor/agents/developer.md.
-```
-Increment `turns_used`.
+### Step 5 — Parallel MEMORY-KEEPER checkpoints
+One per task: local MEMORY.md only. Wait for all.
 
-### Step 4 — Spawn QA TESTER
-```
-Loop directory: loop-stack/<LOOP_ID>/
-GLOBAL DATA FIRST — read loop-stack/.global/MEMORY.md for cross-loop test quirks.
-Also read loop-stack/.global/TOOLS.md for cross-loop tool context.
-Read loop-stack/<LOOP_ID>/MEMORY.md, loop-stack/<LOOP_ID>/TOOLS.md.
-Read loop-stack/<LOOP_ID>/RESEARCH.md — check for edge cases the researcher identified.
-Read loop-stack/<LOOP_ID>/STATUS.md — developer result: {Last Developer Result from STATUS.md}
-Current task just implemented: {current_task}
-Run QA checks. Follow .cursor/agents/qa-tester.md.
-```
+### Step 6 — Parallel QA TESTERS. One per task. Wait for all.
 
-### Step 5 — Spawn VERIFIER
-```
-Loop directory: loop-stack/<LOOP_ID>/
-GLOBAL DATA FIRST — read loop-stack/.global/MEMORY.md for cross-loop verification gotchas.
-Read loop-stack/<LOOP_ID>/MEMORY.md.
-Current task: {current_task}
-Last QA Result: {Last QA Result from STATUS.md}
-Run stop condition and update loop-stack/<LOOP_ID>/. Follow .cursor/agents/verifier.md.
-```
+### Step 7 — Parallel VERIFIERS. One per task. Wait for all.
 
-### Step 6 — Read verifier result
+### Step 8 — Process results
+- PASS → auditor
+- FAIL < 3 attempts → retry from Step 3
+- FAIL ≥ 3 → auto-skip
 
-**If State == FAILED:**
-- Increment attempts in loop-stack/<LOOP_ID>/STATUS.md
-- If attempts >= 3:
-  - **Auto-skip — do NOT pause for user.**
-  - Add to `skipped_tasks`: `{current_task} (3 attempts failed)`
-  - Update loop-stack/<LOOP_ID>/STATUS.md: Skipped Tasks += current_task, Blocked Reason = "3 attempts failed"
-  - Advance to next task (go to Step 10 without marking [x])
-- Else → continue loop with failure context in loop-stack/<LOOP_ID>/STATUS.md
+### Step 9 — Parallel AUDITORS (per passing task). Wait for all.
 
-**If State == VERIFIED_PASS:**
+### Step 10 — Process audit results
+- CLEAN/WARN → proceed
+- BLOCK → auto-fix (one developer retry + re-verify). Still BLOCK → auto-skip.
 
-### Step 7 — Spawn AUDITOR
-```
-Loop directory: loop-stack/<LOOP_ID>/
-GLOBAL DATA FIRST — read loop-stack/.global/MEMORY.md for cross-loop project standards.
-Also read loop-stack/.global/TOOLS.md for cross-loop tool context.
-Read loop-stack/<LOOP_ID>/MEMORY.md, loop-stack/<LOOP_ID>/TOOLS.md.
-Read loop-stack/<LOOP_ID>/RESEARCH.md — check constraints the researcher identified.
-Task just verified: {current_task}
-Last Developer Result: {Last Developer Result from STATUS.md}
-Last QA Result: {Last QA Result from STATUS.md}
-Review for quality. Follow .cursor/agents/auditor.md.
-```
+### Step 11 — MEMORY-KEEPER final consolidation (single)
+Distill all completed tasks. Write to MEMORY.md + loop-stack/.global/MEMORY.md.
 
-### Step 8 — Read audit result
-
-**If BLOCK:**
-- **Auto-attempt fix — do NOT pause for user.**
-  1. Spawn DEVELOPER again with the BLOCK issue as explicit context (one retry, increment `turns_used`)
-  2. Spawn VERIFIER to re-check
-  3. If still BLOCK → add to `skipped_tasks`: `{current_task} (audit block, auto-fix failed)`, advance to next task
-  4. If passes → continue to Step 9
-
-**If CLEAN or WARN:**
-
-### Step 9 — Spawn MEMORY KEEPER
-```
-Loop directory: loop-stack/<LOOP_ID>/
-Task just completed and audited: {current_task}
-Last Audit Result: {Last Audit Result from STATUS.md}
-Distill learnings into loop-stack/<LOOP_ID>/MEMORY.md.
-Also append the single most important learning to loop-stack/.global/MEMORY.md.
-Follow .cursor/agents/memory-keeper.md.
-```
-
-### Step 10 — Advance
-- Increment `done_tasks`
-- Reset attempts to 0
-- If `USE_GIT`: commit `loop-stack/<LOOP_ID>/PLAN.md` + `loop-stack/<LOOP_ID>/STATUS.md` with `loop: verified {current_task}`
-- Find next unchecked task in loop-stack/<LOOP_ID>/PLAN.md
-- If none:
-  - Update loop-stack/<LOOP_ID>/STATUS.md State to ALL DONE
-  - Rename the loop directory to mark it complete:
-    - PowerShell: `Rename-Item -Path "loop-stack/<LOOP_ID>" -NewName "<LOOP_ID>_DONE"`
-    - Bash: `mv "loop-stack/<LOOP_ID>" "loop-stack/<LOOP_ID>_DONE"`
-  - Go to Phase 6 (use path `loop-stack/<LOOP_ID>_DONE/` from here on)
-- Else → update loop-stack/<LOOP_ID>/STATUS.md Current Task → continue loop
+### Step 12 — Advance
+Mark [x]. Git commit if enabled. Find next group. None → ALL DONE →
+rename `loop-stack/<LOOP_ID>/` → `loop-stack/<LOOP_ID>_DONE/` → Phase 6.
 
 ---
 
 ## Phase 6 — Completion Report
 
-Write `loop-stack/<LOOP_ID>_DONE/REPORT.md`:
-
-    # Loop Report
-
-    ## Goal
-    {GOAL}
-
-    ## Outcome
-    {ALL DONE / budget reached / stopped by user / auditor block}
-
-    ## Summary
-    Completed {done_tasks} of {total_tasks} tasks in {turns_used} turns.
-    Skipped: {count} tasks.
-
-    ## Completed Tasks
-    {list}
-
-    ## Skipped / Remaining
-    {list with skip reasons}
-
-    ## Tools Used
-    {from TOOLS.md — recommended tools}
-
-    ## Key Learnings
-    {from MEMORY.md — all accumulated learnings}
-
-    ## Git Integration
-    {yes / no — commits made: N}
-
-Print to user:
-
-    ## Loop Complete
-    Outcome: {outcome}
-    Tasks: {done_tasks}/{total_tasks} | Skipped: {len(skipped_tasks)} | Turns: {turns_used}/{MAX_TURNS}
-    Loop folder: loop-stack/<LOOP_ID>_DONE/
-    Learnings saved: loop-stack/<LOOP_ID>_DONE/MEMORY.md
-    Full report: loop-stack/<LOOP_ID>_DONE/REPORT.md
+Write `loop-stack/<LOOP_ID>_DONE/REPORT.md` and print summary.
 
 ---
 
 ## Rules
 
-- Phase 0 always runs first — check for resume before asking anything. Skip `_DONE` folders.
-- **Global data first**: Every agent prompt must instruct agents to read `loop-stack/.global/MEMORY.md` and check `loop-stack/.global/TOOLS.md` BEFORE doing any work. Never re-discover what's already in global.
-- Tool-scout runs once before the main loop. It MUST check global TOOLS.md first (skip discovery if <7 days old).
-- Researcher runs before developer every task — provides grounded context, reduces hallucination.
-- Memory-keeper runs after every auditor pass — writes to both loop and global MEMORY.md.
-- Never write literal placeholders like `{STOP_CONDITION}` into generated files.
-- All state files live in `loop-stack/<LOOP_ID>/`. All agent definitions live in `.cursor/agents/`.
-- Never exceed MAX_TURNS without stopping and reporting.
-- **Fully autonomous**: Never pause for user input during the loop. On 3 failures: auto-skip. On audit BLOCK: auto-fix once then skip.
-- On loop completion: rename `loop-stack/<LOOP_ID>/` → `loop-stack/<LOOP_ID>_DONE/`.
-- Each loop runs in its own directory — never read/write another loop's files.
-- Global files (`loop-stack/.global/`) are shared across all loops — always check them first.
+- Phase 0 first. Skip `_DONE` folders.
+- **File copy**: shell commands only. Never write agent files manually.
+- **Global data first**: every agent reads `.global/MEMORY.md` + `.global/TOOLS.md`.
+- **Parallel first**: same group = spawn simultaneously. Different group = sequential.
+- **Researcher before developer**: always. Dynamic count.
+- **Memory-keeper twice per batch**: checkpoint (local) after devs, consolidation (local+global) after audit.
+- **Developers append to MEMORY.md directly** during work.
+- **Planner**: once at startup after researchers + tool-scout.
+- **Fully autonomous**: no pauses. 3 fails → auto-skip. BLOCK → auto-fix once → skip.
+- On completion: rename to `<LOOP_ID>_DONE/`.
