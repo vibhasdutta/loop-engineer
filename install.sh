@@ -53,12 +53,12 @@ install_antigravity() {
 }
 
 install_codex() {
-  local dir="${HOME}/.codex/skills/loop-engineer-codex"
+  local dir="${HOME}/.codex/skills/loop-engineer"
   mkdir -p "$dir/agents"
   cp "$REPO_DIR/platforms/codex/SKILL.md" "$dir/SKILL.md"
   cp "$REPO_DIR/platforms/codex/agents/"*.toml "$dir/agents/"
   echo "Codex CLI: installed to $dir"
-  echo "Use /loop-engineer-codex in any Codex session."
+  echo "Use /loop-engineer in any Codex session."
 }
 
 case "$MODE" in

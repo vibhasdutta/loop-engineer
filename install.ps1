@@ -69,12 +69,12 @@ function Install-Antigravity {
 }
 
 function Install-Codex {
-    $dir = "$env:USERPROFILE\.codex\skills\loop-engineer-codex"
+    $dir = "$env:USERPROFILE\.codex\skills\loop-engineer"
     New-Item -ItemType Directory -Force "$dir\agents" | Out-Null
     Copy-Item "$RepoDir\platforms\codex\SKILL.md" "$dir\SKILL.md" -Force
     Copy-Item "$RepoDir\platforms\codex\agents\*.toml" "$dir\agents\" -Force
     Write-Host "Codex CLI: installed to $dir"
-    Write-Host "Use /loop-engineer-codex in any Codex session."
+    Write-Host "Use /loop-engineer in any Codex session."
 }
 
 if ($All) {
