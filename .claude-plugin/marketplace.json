@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "loop-engineer",
-  "description": "Loop engineering wizard for Claude Code. Answer 3 questions and Claude orchestrates a maker/verifier agent loop until your goal is met.",
+  "description": "Loop engineering wizard for Claude Code. Answer 2 questions and Claude orchestrates a fully autonomous 7-agent team (tool-scout, researcher, developer, qa-tester, verifier, auditor, memory-keeper) until your goal is met.",
   "owner": {
     "name": "Vibhas Dutta",
     "email": "dotdefence.info@gmail.com"
@@ -9,8 +9,8 @@
   "plugins": [
     {
       "name": "loop-engineer",
-      "description": "Loop engineering wizard for Claude Code. Answer 3 questions and Claude orchestrates a maker/verifier agent loop until your goal is met.",
-      "version": "1.0.0",
+      "description": "Loop engineering wizard for Claude Code. Answer 2 questions and Claude orchestrates a fully autonomous 7-agent team (tool-scout, researcher, developer, qa-tester, verifier, auditor, memory-keeper) until your goal is met.",
+      "version": "1.1.0",
       "source": "./",
       "category": "productivity",
       "author": {

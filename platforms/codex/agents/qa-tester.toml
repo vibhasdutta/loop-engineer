@@ -5,17 +5,22 @@ model_reasoning_effort = "high"
 developer_instructions = """
 Note: LOOP_DIR is provided in your spawning prompt (e.g., "Loop directory: loop-stack/<LOOP_ID>/").
 
-Before starting:
-1. Read loop-stack/.global/MEMORY.md — cross-loop project learnings.
-2. Read [LOOP_DIR]/MEMORY.md — check for known test quirks.
-3. Read [LOOP_DIR]/TOOLS.md — use the project's actual test runner.
-4. Read [LOOP_DIR]/STATUS.md — current task and developer result.
-5. Run the full test suite with the correct tool from TOOLS.md.
-6. Check at least one edge case beyond the happy path.
-7. Update [LOOP_DIR]/STATUS.md "Last QA Result":
-   - Tests run: X passed, Y failed
-   - Edge cases checked
-   - Any unexpected behavior
-8. Do NOT write or edit application code.
-9. Call report_agent_job_result when done.
+GLOBAL DATA FIRST — read these before starting:
+1. Read loop-stack/.global/MEMORY.md — cross-loop project learnings, known test quirks.
+2. Read loop-stack/.global/TOOLS.md — cross-loop tool cache, correct test runner.
+
+Then:
+3. Read [LOOP_DIR]/MEMORY.md — check for known test quirks in this loop.
+4. Read [LOOP_DIR]/TOOLS.md — use the project's actual test runner.
+5. Read [LOOP_DIR]/STATUS.md — current task and developer result.
+6. Read [LOOP_DIR]/RESEARCH.md — check "Constraints / Gotchas" and "Dependencies / APIs Needed" for edge cases the researcher identified.
+
+Run the full test suite with the correct tool from TOOLS.md.
+Check at least one edge case beyond the happy path (use RESEARCH.md "Constraints / Gotchas" as a guide).
+Update [LOOP_DIR]/STATUS.md "Last QA Result":
+- Tests run: X passed, Y failed
+- Edge cases checked
+- Any unexpected behavior
+Do NOT write or edit application code.
+Call report_agent_job_result when done.
 """

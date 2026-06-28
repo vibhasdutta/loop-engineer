@@ -5,6 +5,9 @@
 | Skill | Platform | Minimum version |
 |---|---|---|
 | `/loop-engineer` | [Claude Code](https://claude.ai/code) (CLI or desktop app) | any |
+| `/loop-engineer` | [Cursor](https://cursor.com) | any |
+| `/loop-engineer` | [Gemini CLI](https://github.com/google-gemini/gemini-cli) | any |
+| `/loop-engineer` | [Antigravity](https://deepmind.google/technologies/gemini/antigravity/) | any |
 | `/loop-engineer-codex` | [Codex CLI](https://github.com/openai/codex) | 0.128.0+ |
 
 ---
@@ -46,6 +49,76 @@ Restart Claude Code, then type `/loop-engineer` in any project.
 
 ---
 
+## Cursor
+
+Installs to `~/.cursor/skills/loop-engineer/`.
+
+### Windows (PowerShell)
+
+```powershell
+git clone https://github.com/vibhasdutta/loop-engineer.git
+cd loop-engineer
+.\install.ps1 -Cursor
+```
+
+### macOS / Linux
+
+```bash
+git clone https://github.com/vibhasdutta/loop-engineer.git
+cd loop-engineer && bash install.sh --cursor
+```
+
+### Verify
+
+Restart Cursor, then type `/loop-engineer` in any project.
+
+---
+
+## Gemini CLI
+
+Installs to `~/.gemini/skills/loop-engineer/`.
+
+### macOS / Linux
+
+```bash
+git clone https://github.com/vibhasdutta/loop-engineer.git
+cd loop-engineer && bash install.sh --gemini
+```
+
+### Windows (PowerShell)
+
+```powershell
+git clone https://github.com/vibhasdutta/loop-engineer.git
+cd loop-engineer
+.\install.ps1 -Gemini
+```
+
+Then register the extension:
+```bash
+gemini extension install ~/.gemini/skills/loop-engineer
+```
+
+### Verify
+
+Describe a multi-step goal to Gemini CLI — the skill activates automatically.
+
+---
+
+## Antigravity
+
+Installs to `~/.gemini/skills/loop-engineer/`.
+
+### macOS / Linux
+
+```bash
+git clone https://github.com/vibhasdutta/loop-engineer.git
+cd loop-engineer && bash install.sh --antigravity
+```
+
+Also copy `platforms/antigravity/AGENTS.md` to your project root for workspace context.
+
+---
+
 ## Codex CLI
 
 Installs to `~/.codex/skills/loop-engineer-codex/`.
@@ -64,31 +137,23 @@ cd loop-engineer
 .\install.ps1 -Codex
 ```
 
-### Manual (macOS / Linux)
-
-```bash
-mkdir -p ~/.codex/skills/loop-engineer-codex
-curl -s https://raw.githubusercontent.com/vibhasdutta/loop-engineer/main/skills/loop-engineer-codex/SKILL.md \
-  > ~/.codex/skills/loop-engineer-codex/SKILL.md
-```
-
 ### Verify
 
 In a Codex session, type `/loop-engineer-codex` in any project.
 
 ---
 
-## Install both at once
+## Install all platforms at once
 
 **macOS / Linux:**
 ```bash
 git clone https://github.com/vibhasdutta/loop-engineer.git
-cd loop-engineer && bash install.sh --both
+cd loop-engineer && bash install.sh --all
 ```
 
 **Windows (PowerShell):**
 ```powershell
 git clone https://github.com/vibhasdutta/loop-engineer.git
 cd loop-engineer
-.\install.ps1 -Both
+.\install.ps1 -All
 ```

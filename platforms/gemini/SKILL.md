@@ -3,10 +3,10 @@ name: loop-engineer
 description: >
   Loop engineering wizard. Use when the user wants to run an autonomous agent
   loop, orchestrate a multi-agent team, break a goal into tasks and execute them
-  automatically, or resume an in-progress loop. Scaffolds a 6-agent team
-  (tool-scout, developer, qa-tester, verifier, auditor, memory-keeper) and
-  orchestrates execution until the goal is met. Supports resume, persistent
-  memory, git integration, and generates a completion report.
+  automatically, or resume an in-progress loop. Scaffolds a 7-agent team
+  (tool-scout, researcher, developer, qa-tester, verifier, auditor, memory-keeper)
+  and orchestrates a fully autonomous execution until the goal is met. Supports
+  resume, persistent memory, git integration, and generates a completion report.
 ---
 
 # Loop Engineer
@@ -22,9 +22,10 @@ You are running a loop engineering wizard. Follow these phases in order.
 
 ## Phase 0 — Resume Check
 
-Before anything else, scan for any `loop-stack/*/STATUS.md` files (subdirectory pattern) in the current directory.
+Before anything else, scan for any `loop-stack/*/STATUS.md` files in the current directory.
+**Skip any directory whose name ends with `_DONE` — those loops are already complete.**
 
-**If none found:** continue to Phase 1.
+**If none found (excluding `_DONE` folders):** continue to Phase 1.
 
 **If one found:** Read it and tell the user:
 > "Found an existing loop: loop-stack/{loop-id}/
@@ -32,7 +33,7 @@ Before anything else, scan for any `loop-stack/*/STATUS.md` files (subdirectory 
 >
 > Resume this loop or start fresh?"
 
-- **Resume** → skip to Phase 6 (Outer Loop) using existing files in `loop-stack/{loop-id}/`.
+- **Resume** → skip to Phase 5 (Outer Loop) using existing files in `loop-stack/{loop-id}/`.
 - **Fresh** → delete only `loop-stack/<loop-id>/` directory (do NOT delete `.gemini/agents/` — those are shared across loops), continue to Phase 1.
 
 **If multiple found:** List them all — show loop-id, State, and Progress for each:
@@ -43,7 +44,7 @@ Before anything else, scan for any `loop-stack/*/STATUS.md` files (subdirectory 
 >
 > Which loop do you want to resume? (enter a number) Or type 'fresh' to start a new loop."
 
-- **Number chosen** → resume that loop (skip to Phase 6 using that loop's files).
+- **Number chosen** → resume that loop (skip to Phase 5 using that loop's files).
 - **Fresh** → continue to Phase 1.
 
 ---
@@ -56,10 +57,11 @@ Ask **one at a time**. Wait for the full answer before asking the next.
 > "What do you want the loop to accomplish? (1-2 sentences)"
 
 After storing GOAL, generate LOOP_ID by slugifying GOAL:
-- lowercase, replace non-alphanumeric runs with hyphens, strip leading/trailing hyphens, max 40 chars
-- Example: "Add auth flow to API" → "add-auth-flow-to-api"
-- If the resulting LOOP_ID is empty (e.g., goal was all punctuation or non-ASCII), use a timestamp fallback: `loop-` + current date-time as `YYYYMMDD-HHMMSS`.
-- After truncating to 40 chars, strip any trailing hyphen.
+- lowercase, replace non-alphanumeric runs with hyphens, strip leading/trailing hyphens
+- Take only the first 4 meaningful words (skip stop words: a, an, the, to, for, of, in, on, with, and, or)
+- Truncate to **24 chars max**, strip any trailing hyphen
+- Example: "Add authentication flow to the REST API" → "add-auth-flow-api"
+- If the resulting LOOP_ID is empty, use timestamp fallback: `loop-` + `YYYYMMDD-HHMMSS`.
 
 Store as LOOP_ID.
 
@@ -129,6 +131,12 @@ Create the `loop-stack/<LOOP_ID>/` directory.
     ## Completed Tasks
     (none)
 
+    ## Skipped Tasks
+    (none)
+
+    ## Last Researcher Result
+    (none)
+
     ## Last Developer Result
     (none)
 
@@ -162,6 +170,16 @@ Create the `loop-stack/<LOOP_ID>/` directory.
     ## Status
     PENDING — tool-scout has not run yet
 
+**loop-stack/<LOOP_ID>/RESEARCH.md:**
+
+    # Research Log
+
+    Written by the researcher agent before each task.
+    Developer reads this before implementing.
+
+    ## Current Task Research
+    (none yet)
+
 Initialize global memory if needed:
 - If `loop-stack/.global/MEMORY.md` does not exist, create it:
 
@@ -174,8 +192,9 @@ Initialize global memory if needed:
 
 Create `.gemini/agents/` if it does not exist.
 
-Copy the 5 pre-built agent files from `~/.gemini/skills/loop-engineer/agents/` into `.gemini/agents/`:
+Copy the 6 pre-built agent files from `~/.gemini/skills/loop-engineer/agents/` into `.gemini/agents/`:
 - `tool-scout.md`
+- `researcher.md`
 - `developer.md`
 - `qa-tester.md`
 - `auditor.md`
@@ -193,15 +212,16 @@ Then write **only** `verifier.md` — substituting the actual STOP_CONDITION (ne
     You are the verifier agent.
 
     Steps:
-    1. Read loop-stack/<LOOP_ID>/MEMORY.md — check for known verification gotchas.
-    2. Read loop-stack/<LOOP_ID>/STATUS.md and loop-stack/<LOOP_ID>/PLAN.md.
-    3. Run: {STOP_CONDITION}
-    4. If PASSES:
-       - Set loop-stack/<LOOP_ID>/STATUS.md State to VERIFIED_PASS
-       - Mark current task done in loop-stack/<LOOP_ID>/PLAN.md (- [ ] → - [x])
+    1. Read loop-stack/.global/MEMORY.md (if exists) FIRST — check for cross-loop verification gotchas.
+    2. Read [LOOP_DIR]/MEMORY.md — check for known verification gotchas in this loop.
+    3. Read [LOOP_DIR]/STATUS.md and [LOOP_DIR]/PLAN.md.
+    4. Run: {STOP_CONDITION}
+    5. If PASSES:
+       - Set [LOOP_DIR]/STATUS.md State to VERIFIED_PASS
+       - Mark current task done in [LOOP_DIR]/PLAN.md (- [ ] → - [x])
        - Update Task Progress count
        - If no unchecked tasks remain: set State to ALL DONE
-    5. If FAILS:
+    6. If FAILS:
        - Set State to FAILED
        - Write exact error to Last Developer Result
     HARD RULE: Never write or edit application code.
@@ -209,27 +229,27 @@ Then write **only** `verifier.md` — substituting the actual STOP_CONDITION (ne
 
 After copying/writing all files, confirm:
 
-> "loop-stack/<LOOP_ID>/ created: PLAN.md · STATUS.md · MEMORY.md · TOOLS.md
+> "loop-stack/<LOOP_ID>/ created: PLAN.md · STATUS.md · MEMORY.md · TOOLS.md · RESEARCH.md
 > loop-stack/.global/ initialized: MEMORY.md
-> .gemini/agents/ ready: tool-scout · developer · qa-tester · verifier · auditor · memory-keeper
+> .gemini/agents/ ready: tool-scout · researcher · developer · qa-tester · verifier · auditor · memory-keeper
 > Starting loop..."
 
 ---
 
 ## Phase 4 — Tool Discovery Run
 
-Before the main loop, spawn the tool-scout agent once:
+Before the main loop, invoke the tool-scout subagent:
 
 Use the `invoke_subagent` tool with the following prompt:
 ```
 Loop directory: loop-stack/<LOOP_ID>/
+IMPORTANT: Read loop-stack/.global/MEMORY.md FIRST — apply any cross-loop project learnings.
 Read loop-stack/<LOOP_ID>/PLAN.md to understand the goal.
-Check loop-stack/.global/TOOLS.md:
+Check loop-stack/.global/TOOLS.md BEFORE any discovery:
 - If it exists and was modified less than 7 days ago: copy its content to loop-stack/<LOOP_ID>/TOOLS.md and skip discovery (write Status: REUSED FROM GLOBAL)
 - Otherwise: discover all available tools, MCPs, plugins, and skills. Write results to BOTH loop-stack/<LOOP_ID>/TOOLS.md AND loop-stack/.global/TOOLS.md (overwrite global).
 Follow .gemini/agents/tool-scout.md instructions.
 ```
-
 Wait for the subagent to complete and return its result before continuing.
 Auto-continue into the outer loop immediately after tool-scout completes — no user confirmation needed.
 
@@ -238,9 +258,11 @@ Auto-continue into the outer loop immediately after tool-scout completes — no 
 ## Phase 5 — Outer Loop
 
 You (the AI, main session) are the outer loop controller.
+**FULLY AUTONOMOUS — never pause for user input during the loop. Handle all failures automatically.**
 
 **Initialize:**
 - `turns_used = 0`
+- `skipped_tasks = []`
 - Read `loop-stack/<LOOP_ID>/PLAN.md` → `total_tasks`
 - `done_tasks = count of [x] tasks in loop-stack/<LOOP_ID>/PLAN.md`
 
@@ -256,15 +278,34 @@ If `turns_used >= MAX_TURNS`:
 ### Step 2 — Read state
 Read `loop-stack/<LOOP_ID>/STATUS.md` → `current_task`, `attempts`, last results.
 
+### Step 2.5 — Spawn RESEARCHER
+Use the `invoke_subagent` tool with the following prompt:
+```
+Loop directory: loop-stack/<LOOP_ID>/
+GLOBAL DATA FIRST — read these before anything else:
+  - loop-stack/.global/MEMORY.md — cross-loop learnings (check for prior research on similar tasks)
+  - loop-stack/.global/TOOLS.md — global tool cache
+Then read loop-stack/<LOOP_ID>/MEMORY.md, loop-stack/<LOOP_ID>/TOOLS.md, loop-stack/<LOOP_ID>/PLAN.md.
+Current task: {current_task}
+Research what the developer needs. Write findings to loop-stack/<LOOP_ID>/RESEARCH.md.
+Update STATUS.md "Last Researcher Result" with a one-line summary.
+Follow .gemini/agents/researcher.md.
+```
+Wait for the subagent to complete before proceeding to Step 3.
+Increment `turns_used`.
+
 ### Step 3 — Spawn DEVELOPER
 Use the `invoke_subagent` tool with the following prompt:
 ```
 Loop directory: loop-stack/<LOOP_ID>/
-Read loop-stack/.global/MEMORY.md (cross-loop project learnings).
-Read loop-stack/<LOOP_ID>/MEMORY.md (this loop's learnings).
-Read loop-stack/<LOOP_ID>/TOOLS.md, loop-stack/<LOOP_ID>/PLAN.md, loop-stack/<LOOP_ID>/STATUS.md.
+GLOBAL DATA FIRST — read these before writing any code:
+  - loop-stack/.global/MEMORY.md — cross-loop project learnings (apply patterns found here)
+  - loop-stack/.global/TOOLS.md — cross-loop tool cache
+Then read loop-stack/<LOOP_ID>/MEMORY.md, loop-stack/<LOOP_ID>/TOOLS.md, loop-stack/<LOOP_ID>/PLAN.md, loop-stack/<LOOP_ID>/STATUS.md.
+READ THIS BEFORE CODING: loop-stack/<LOOP_ID>/RESEARCH.md — researcher's findings and suggested approach for this task.
 Current task: {current_task}
-Previous attempt result: {Last Developer Result}
+Last Researcher Result: {Last Researcher Result from STATUS.md}
+Previous attempt result: {Last Developer Result from STATUS.md}
 Implement. Follow .gemini/agents/developer.md.
 ```
 Wait for the subagent to complete before proceeding to Step 4.
@@ -274,11 +315,13 @@ Increment `turns_used`.
 Use the `invoke_subagent` tool with the following prompt:
 ```
 Loop directory: loop-stack/<LOOP_ID>/
-Read loop-stack/.global/MEMORY.md (cross-loop project learnings).
-Read loop-stack/<LOOP_ID>/MEMORY.md (this loop's learnings).
+GLOBAL DATA FIRST — read loop-stack/.global/MEMORY.md for cross-loop test quirks.
+Also read loop-stack/.global/TOOLS.md for cross-loop tool context.
+Read loop-stack/<LOOP_ID>/MEMORY.md, loop-stack/<LOOP_ID>/TOOLS.md.
+Read loop-stack/<LOOP_ID>/RESEARCH.md — check for edge cases the researcher identified.
+Read loop-stack/<LOOP_ID>/STATUS.md — developer result: {Last Developer Result from STATUS.md}
 Current task just implemented: {current_task}
-Run QA checks using tools from loop-stack/<LOOP_ID>/TOOLS.md.
-Follow .gemini/agents/qa-tester.md.
+Run QA checks. Follow .gemini/agents/qa-tester.md.
 ```
 Wait for the subagent to complete before proceeding to Step 5.
 
@@ -286,7 +329,10 @@ Wait for the subagent to complete before proceeding to Step 5.
 Use the `invoke_subagent` tool with the following prompt:
 ```
 Loop directory: loop-stack/<LOOP_ID>/
+GLOBAL DATA FIRST — read loop-stack/.global/MEMORY.md for cross-loop verification gotchas.
+Read loop-stack/<LOOP_ID>/MEMORY.md.
 Current task: {current_task}
+Last QA Result: {Last QA Result from STATUS.md}
 Run stop condition and update loop-stack/<LOOP_ID>/. Follow .gemini/agents/verifier.md.
 ```
 Wait for the subagent to complete before proceeding to Step 6.
@@ -295,7 +341,11 @@ Wait for the subagent to complete before proceeding to Step 6.
 
 **If State == FAILED:**
 - Increment attempts in loop-stack/<LOOP_ID>/STATUS.md
-- If attempts >= 3 → PAUSE, ask user: retry / skip / stop
+- If attempts >= 3:
+  - **Auto-skip — do NOT pause for user.**
+  - Add to `skipped_tasks`: `{current_task} (3 attempts failed)`
+  - Update loop-stack/<LOOP_ID>/STATUS.md: Skipped Tasks += current_task, Blocked Reason = "3 attempts failed"
+  - Advance to next task (go to Step 10 without marking [x])
 - Else → continue loop with failure context in loop-stack/<LOOP_ID>/STATUS.md
 
 **If State == VERIFIED_PASS:**
@@ -304,9 +354,13 @@ Wait for the subagent to complete before proceeding to Step 6.
 Use the `invoke_subagent` tool with the following prompt:
 ```
 Loop directory: loop-stack/<LOOP_ID>/
-Read loop-stack/.global/MEMORY.md (cross-loop project learnings).
-Read loop-stack/<LOOP_ID>/MEMORY.md (this loop's learnings).
+GLOBAL DATA FIRST — read loop-stack/.global/MEMORY.md for cross-loop project standards.
+Also read loop-stack/.global/TOOLS.md for cross-loop tool context.
+Read loop-stack/<LOOP_ID>/MEMORY.md, loop-stack/<LOOP_ID>/TOOLS.md.
+Read loop-stack/<LOOP_ID>/RESEARCH.md — check constraints the researcher identified.
 Task just verified: {current_task}
+Last Developer Result: {Last Developer Result from STATUS.md}
+Last QA Result: {Last QA Result from STATUS.md}
 Review for quality. Follow .gemini/agents/auditor.md.
 ```
 Wait for the subagent to complete before proceeding to Step 8.
@@ -314,7 +368,11 @@ Wait for the subagent to complete before proceeding to Step 8.
 ### Step 8 — Read audit result
 
 **If BLOCK:**
-- PAUSE loop. Tell user the critical issue. Ask: fix and re-verify / skip audit / stop.
+- **Auto-attempt fix — do NOT pause for user.**
+  1. Use `invoke_subagent` to spawn DEVELOPER again with the BLOCK issue as explicit context (one retry, increment `turns_used`); wait for completion
+  2. Use `invoke_subagent` to spawn VERIFIER to re-check; wait for completion
+  3. If still BLOCK → add to `skipped_tasks`: `{current_task} (audit block, auto-fix failed)`, advance to next task
+  4. If passes → continue to Step 9
 
 **If CLEAN or WARN:**
 
@@ -323,7 +381,10 @@ Use the `invoke_subagent` tool with the following prompt:
 ```
 Loop directory: loop-stack/<LOOP_ID>/
 Task just completed and audited: {current_task}
-Distill learnings. Follow .gemini/agents/memory-keeper.md.
+Last Audit Result: {Last Audit Result from STATUS.md}
+Distill learnings into loop-stack/<LOOP_ID>/MEMORY.md.
+Also append the single most important learning to loop-stack/.global/MEMORY.md.
+Follow .gemini/agents/memory-keeper.md.
 ```
 Wait for the subagent to complete before proceeding to Step 10.
 
@@ -332,14 +393,18 @@ Wait for the subagent to complete before proceeding to Step 10.
 - Reset attempts to 0
 - If `USE_GIT`: commit `loop-stack/<LOOP_ID>/PLAN.md` + `loop-stack/<LOOP_ID>/STATUS.md` with `loop: verified {current_task}`
 - Find next unchecked task in loop-stack/<LOOP_ID>/PLAN.md
-- If none → update loop-stack/<LOOP_ID>/STATUS.md State to ALL DONE → go to Phase 6
+- If none:
+  - Update loop-stack/<LOOP_ID>/STATUS.md State to ALL DONE
+  - Rename the loop directory to mark it complete:
+    - Bash: `mv "loop-stack/<LOOP_ID>" "loop-stack/<LOOP_ID>_DONE"`
+  - Go to Phase 6 (use path `loop-stack/<LOOP_ID>_DONE/` from here on)
 - Else → update loop-stack/<LOOP_ID>/STATUS.md Current Task → continue loop
 
 ---
 
 ## Phase 6 — Completion Report
 
-Write `loop-stack/<LOOP_ID>/REPORT.md`:
+Write `loop-stack/<LOOP_ID>_DONE/REPORT.md`:
 
     # Loop Report
 
@@ -351,18 +416,19 @@ Write `loop-stack/<LOOP_ID>/REPORT.md`:
 
     ## Summary
     Completed {done_tasks} of {total_tasks} tasks in {turns_used} turns.
+    Skipped: {count} tasks.
 
     ## Completed Tasks
     {list}
 
     ## Skipped / Remaining
-    {list}
+    {list with skip reasons}
 
     ## Tools Used
-    {from loop-stack/<LOOP_ID>/TOOLS.md — recommended tools}
+    {from TOOLS.md — recommended tools}
 
     ## Key Learnings
-    {from loop-stack/<LOOP_ID>/MEMORY.md — all accumulated learnings}
+    {from MEMORY.md — all accumulated learnings}
 
     ## Git Integration
     {yes / no — commits made: N}
@@ -371,21 +437,25 @@ Print to user:
 
     ## Loop Complete
     Outcome: {outcome}
-    Tasks: {done_tasks}/{total_tasks} | Turns: {turns_used}/{MAX_TURNS}
-    Learnings saved: loop-stack/<LOOP_ID>/MEMORY.md
-    Full report: loop-stack/<LOOP_ID>/REPORT.md
+    Tasks: {done_tasks}/{total_tasks} | Skipped: {len(skipped_tasks)} | Turns: {turns_used}/{MAX_TURNS}
+    Loop folder: loop-stack/<LOOP_ID>_DONE/
+    Learnings saved: loop-stack/<LOOP_ID>_DONE/MEMORY.md
+    Full report: loop-stack/<LOOP_ID>_DONE/REPORT.md
 
 ---
 
 ## Rules
 
-- Phase 0 always runs first — check for resume before asking anything.
-- Tool-scout runs once before the main loop — never skip it.
-- Memory-keeper runs after every auditor pass — this is what makes the loop smarter.
+- Phase 0 always runs first — check for resume before asking anything. Skip `_DONE` folders.
+- **Global data first**: Every subagent prompt must instruct agents to read `loop-stack/.global/MEMORY.md` and check `loop-stack/.global/TOOLS.md` BEFORE doing any work. Never re-discover what's already in global.
+- Tool-scout runs once before the main loop. It MUST check global TOOLS.md first (skip discovery if <7 days old).
+- Researcher runs before developer every task — provides grounded context, reduces hallucination.
+- Memory-keeper runs after every auditor pass — writes to both loop and global MEMORY.md.
 - Never write literal placeholders like `{STOP_CONDITION}` into generated files.
 - All state files live in `loop-stack/<LOOP_ID>/`. All agent definitions live in `.gemini/agents/`.
 - Never exceed MAX_TURNS without stopping and reporting.
-- All agents must read MEMORY.md and TOOLS.md before acting.
-- Each loop runs in its own `loop-stack/<LOOP_ID>/` directory — never read/write another loop's files.
-- Global files (`loop-stack/.global/`) are shared across all loops — always check them before running tool discovery or starting fresh.
+- **Fully autonomous**: Never pause for user input during the loop. On 3 failures: auto-skip. On audit BLOCK: auto-fix once then skip.
+- On loop completion: rename `loop-stack/<LOOP_ID>/` → `loop-stack/<LOOP_ID>_DONE/`.
+- Each loop runs in its own directory — never read/write another loop's files.
+- Global files (`loop-stack/.global/`) are shared across all loops — always check them first.
 - Each subagent call must complete and return a result before the next subagent is spawned — the loop is sequential, not parallel.

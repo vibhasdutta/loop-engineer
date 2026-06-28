@@ -1,12 +1,18 @@
 # Loop Engineer — Windows installer
 # Usage:
-#   .\install.ps1           -> Claude Code
-#   .\install.ps1 -Codex    -> Codex CLI
-#   .\install.ps1 -Both     -> both
+#   .\install.ps1              -> Claude Code (default)
+#   .\install.ps1 -Cursor      -> Cursor
+#   .\install.ps1 -Gemini      -> Gemini CLI
+#   .\install.ps1 -Antigravity -> Antigravity (agy)
+#   .\install.ps1 -Codex       -> OpenAI Codex CLI
+#   .\install.ps1 -All         -> all platforms
 
 param(
+    [switch]$Cursor,
+    [switch]$Gemini,
+    [switch]$Antigravity,
     [switch]$Codex,
-    [switch]$Both
+    [switch]$All
 )
 
 $RepoDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -14,24 +20,61 @@ $RepoDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 function Install-Claude {
     $dir = "$env:USERPROFILE\.claude\skills\loop-engineer"
     New-Item -ItemType Directory -Force "$dir\agents" | Out-Null
-    Copy-Item "$RepoDir\skills\loop-engineer\SKILL.md" "$dir\SKILL.md"
-    Copy-Item "$RepoDir\skills\loop-engineer\agents\*.md" "$dir\agents\"
+    Copy-Item "$RepoDir\platforms\claude\SKILL.md" "$dir\SKILL.md" -Force
+    Copy-Item "$RepoDir\platforms\claude\agents\*.md" "$dir\agents\" -Force
     Write-Host "Claude Code: installed to $dir"
     Write-Host "Restart Claude Code, then use /loop-engineer in any project."
+}
+
+function Install-Cursor {
+    $dir = "$env:USERPROFILE\.cursor\skills\loop-engineer"
+    New-Item -ItemType Directory -Force "$dir\agents" | Out-Null
+    Copy-Item "$RepoDir\platforms\cursor\SKILL.md" "$dir\SKILL.md" -Force
+    Copy-Item "$RepoDir\platforms\cursor\agents\*.md" "$dir\agents\" -Force
+    Write-Host "Cursor: installed to $dir"
+    Write-Host "Restart Cursor, then use /loop-engineer in any project."
+}
+
+function Install-Gemini {
+    $dir = "$env:USERPROFILE\.gemini\skills\loop-engineer"
+    New-Item -ItemType Directory -Force "$dir\agents" | Out-Null
+    Copy-Item "$RepoDir\platforms\gemini\SKILL.md" "$dir\SKILL.md" -Force
+    Copy-Item "$RepoDir\platforms\gemini\GEMINI.md" "$dir\GEMINI.md" -Force
+    Copy-Item "$RepoDir\platforms\gemini\gemini-extension.json" "$dir\gemini-extension.json" -Force
+    Copy-Item "$RepoDir\platforms\gemini\agents\*.md" "$dir\agents\" -Force
+    Write-Host "Gemini CLI: installed to $dir"
+    Write-Host "Run: gemini extension install $dir"
+}
+
+function Install-Antigravity {
+    $dir = "$env:USERPROFILE\.gemini\skills\loop-engineer"
+    New-Item -ItemType Directory -Force "$dir\agents" | Out-Null
+    Copy-Item "$RepoDir\platforms\antigravity\SKILL.md" "$dir\SKILL.md" -Force
+    Copy-Item "$RepoDir\platforms\antigravity\agents\*.md" "$dir\agents\" -Force
+    Write-Host "Antigravity: installed to $dir"
+    Write-Host "Add AGENTS.md from platforms\antigravity\AGENTS.md to your project root."
 }
 
 function Install-Codex {
     $dir = "$env:USERPROFILE\.codex\skills\loop-engineer-codex"
     New-Item -ItemType Directory -Force "$dir\agents" | Out-Null
-    Copy-Item "$RepoDir\skills\loop-engineer-codex\SKILL.md" "$dir\SKILL.md"
-    Copy-Item "$RepoDir\skills\loop-engineer-codex\agents\*.toml" "$dir\agents\"
+    Copy-Item "$RepoDir\platforms\codex\SKILL.md" "$dir\SKILL.md" -Force
+    Copy-Item "$RepoDir\platforms\codex\agents\*.toml" "$dir\agents\" -Force
     Write-Host "Codex CLI: installed to $dir"
     Write-Host "Use /loop-engineer-codex in any Codex session."
 }
 
-if ($Both) {
+if ($All) {
     Install-Claude
+    Install-Cursor
+    Install-Gemini
     Install-Codex
+} elseif ($Cursor) {
+    Install-Cursor
+} elseif ($Gemini) {
+    Install-Gemini
+} elseif ($Antigravity) {
+    Install-Antigravity
 } elseif ($Codex) {
     Install-Codex
 } else {
