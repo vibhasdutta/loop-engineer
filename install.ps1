@@ -6,14 +6,27 @@
 #   .\install.ps1 -Antigravity -> Antigravity (agy)
 #   .\install.ps1 -Codex       -> OpenAI Codex CLI
 #   .\install.ps1 -All         -> all platforms
+# Also accepts bash-style flags: --cursor, --gemini, --codex, --all
 
 param(
     [switch]$Cursor,
     [switch]$Gemini,
     [switch]$Antigravity,
     [switch]$Codex,
-    [switch]$All
+    [switch]$All,
+    [Parameter(ValueFromRemainingArguments)][string[]]$ExtraArgs
 )
+
+# Accept bash-style --flags passed as positional args
+foreach ($arg in $ExtraArgs) {
+    switch ($arg.ToLower().TrimStart('-')) {
+        'cursor'      { $Cursor = $true }
+        'gemini'      { $Gemini = $true }
+        'antigravity' { $Antigravity = $true }
+        'codex'       { $Codex = $true }
+        'all'         { $All = $true }
+    }
+}
 
 $RepoDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
