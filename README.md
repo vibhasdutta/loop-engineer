@@ -3,9 +3,9 @@
 
   <h1>loop-engineer</h1>
 
-  <p>Answer 2 questions. A 7-agent team runs fully autonomously until your goal is done.</p>
+  <p>Answer 2 questions. A self-assembling 9-agent team runs fully autonomously until your goal is done.</p>
 
-  ![Version](https://img.shields.io/badge/version-1.1.1-0d9488?style=flat-square)
+  ![Version](https://img.shields.io/badge/version-1.2.0-0d9488?style=flat-square)
   ![Claude Code](https://img.shields.io/badge/Claude_Code-supported-1a1a2e?style=flat-square&logo=anthropic&logoColor=white)
   ![Cursor](https://img.shields.io/badge/Cursor-supported-000000?style=flat-square)
   ![Gemini CLI](https://img.shields.io/badge/Gemini_CLI-supported-4285F4?style=flat-square&logo=google&logoColor=white)
@@ -22,15 +22,17 @@
 
 ## What it does
 
-You describe a goal in one or two sentences. The skill breaks it into 3–7 atomic tasks, auto-discovers every MCP server, skill, plugin, and project tool available to your agent, then orchestrates a team of 7 specialists — running fully autonomously until every task passes verification or the budget runs out. No further user input needed after the two setup questions.
+You describe a goal in one or two sentences — any goal. The skill researches the problem space, discovers every available resource (MCPs, skills, APIs, datasets, local tools), plans atomic tasks, assembles a team of specialists tailored to the domain, then executes fully autonomously until every task passes verification or the budget runs out. No further user input needed after the two setup questions.
+
+Works for any objective: software development, research papers, data analysis, content creation, automation pipelines, system configuration, or anything else.
 
 **What makes it different from a single-agent prompt:**
 
-- **Researcher runs before every developer pass** — the developer never writes code blind. It gets codebase analysis, API findings, identified gotchas, and a suggested approach before touching a file.
-- **Tool scout builds a Usage Guide** — not just a list of what tools exist, but exact callable names and invocation syntax so developers use MCP tools, skills, and project commands correctly without guessing.
-- **Dynamic researcher count** — simple goals get 2 researchers, multi-system goals get 4, each assigned a focused domain (architecture, APIs, data, deployment).
+- **Domain-agnostic by design** — no hardcoded task types or procedures. Agents derive their behavior from the goal. The same framework that builds a web service can write a research report or configure a data pipeline.
+- **Self-assembling agent team** — after planning, an `agent-factory` creates 1–3 specialized agents tuned to the specific goal domain and writes an `AGENTS.md` manifest. Executors check this and use specialists when available. If generic agents are sufficient, factory creates nothing.
+- **Resource scout runs before everything** — discovers MCPs, skills, local tools, APIs, and datasets relevant to the goal. Writes a usage guide with exact callable names and invocation syntax so executors never have to guess.
+- **Researcher runs before every executor pass** — the executor never acts blind. It gets prior work analysis, domain knowledge, identified constraints, and a suggested approach before touching anything.
 - **Memory accumulates across tasks and loops** — each completed task distills learnings into `MEMORY.md`. The `.global/MEMORY.md` persists across all loops in the project so the agent gets smarter over time.
-- **Verifier is goal-specific** — written fresh for each loop with the actual stop condition, not a generic "did it work" check.
 - **Fully autonomous failure handling** — 3 verifier failures → auto-skip; auditor BLOCK → auto-fix once then skip. Never pauses for user input.
 
 ---
@@ -139,7 +141,7 @@ Q1. What do you want the loop to accomplish? (1–2 sentences)
 Q2. Auto-commit after each verified task? (yes / no)
 ```
 
-Everything else is automatic — LOOP_ID, stop condition, budget, context gathering, task decomposition, tool discovery, and the full agent loop.
+Everything else is automatic — LOOP_ID, stop condition, budget, context gathering, task decomposition, resource discovery, agent assembly, and the full execution loop.
 
 ---
 
@@ -155,27 +157,28 @@ Phase 1  Wizard
 
 Phase 2  State files
          Creates loop-stack/<LOOP_ID>/ with PLAN.md, STATUS.md, MEMORY.md,
-         TOOLS.md, RESEARCH.md. Creates loop-stack/.global/ if missing.
+         TOOLS.md, RESEARCH.md, AGENTS.md. Creates loop-stack/.global/ if missing.
 
 Phase 3  Agent setup
-         Copies 6 static agent files from the skill's agents/ directory.
+         Copies static agent files from the skill's agents/ directory.
          Writes verifier.md fresh with the actual stop condition substituted in.
 
 Phase 4  Startup sequence (parallel on supporting platforms)
-         ├── Researchers  (2–4, assigned domains, run in parallel)
-         ├── Tool Scout   (discovers MCPs, skills, project tools + writes Usage Guide)
-         └── Planner      (reads all research + tools, creates 3–7 tasks with [G1]/[G2] group tags)
+         ├── Researchers    (2–4, universal domains, run in parallel)
+         ├── Resource Scout (discovers MCPs, skills, tools, APIs, datasets)
+         ├── Planner        (reads all research + resources, creates tasks with [G1]/[G2] tags)
+         └── Agent Factory  (reads PLAN.md, creates 1–3 domain-specialized agents → AGENTS.md)
 
 Phase 5  Outer loop — per parallel group until all tasks done or budget hit:
-         ├── Researchers  (one per task, parallel)
-         ├── Developers   (one per task, parallel)
+         ├── Researchers    (one per task, parallel)
+         ├── Executors      (one per task, parallel — check AGENTS.md for specialists first)
          ├── Memory-keeper checkpoint (local only)
-         ├── QA Testers   (one per task, parallel)
-         ├── Verifiers    (one per task, parallel)
+         ├── Evaluators     (one per task, parallel)
+         ├── Verifiers      (one per task, parallel)
          │    PASS ──────────────────────────────────→ Auditor
          │    FAIL < 3 ──────────────────────────────→ retry from Researchers
          │    FAIL ≥ 3 ──────────────────────────────→ auto-skip
-         ├── Auditors     (passing tasks only, parallel)
+         ├── Auditors       (passing tasks only, parallel)
          │    CLEAN/WARN ─────────────────────────────→ advance
          │    BLOCK ──────────────────────────────────→ auto-fix once → retry → auto-skip
          └── Memory-keeper final (local + global write)
@@ -188,18 +191,19 @@ Phase 6  Report
 
 ---
 
-## The 7 agents
+## The agent team
 
 | Agent | What it does |
 |---|---|
-| **tool-scout** | Reads MCP configs, skill directories, and project files. Writes `TOOLS.md` with what's available — including a **Tool Usage Guide** of exact callable names and invocation syntax so developers can use each tool without guessing. Cached globally for 7 days. |
-| **researcher** | Reads global memory and tools, analyzes the codebase, identifies APIs and gotchas, and writes `RESEARCH.md` before every developer pass. Dynamic count (2–4) based on goal complexity, each assigned a focused domain. |
-| **planner** | Reads all researcher output and tool discoveries. Creates 3–7 atomic tasks tagged with parallel group markers: same `[GN]` = run in parallel, different `[GN]` = sequential dependency. Runs once at startup. |
-| **developer** | Reads `RESEARCH.md`, then checks `TOOLS.md ## Tool Usage Guide` for exact invocation syntax before writing code. Implements one task. Appends discoveries to `MEMORY.md` inline. Never marks tasks complete. |
-| **qa-tester** | Tests using the project's real tooling (from `TOOLS.md`). Checks at least one edge case flagged in `RESEARCH.md`. Reports pass/fail counts. Never writes application code. |
+| **resource-scout** | Discovers everything available for the goal — MCP servers, skills, local tools, APIs, datasets, external resources. Writes `TOOLS.md` with a usage guide of exact callable names and invocation syntax. Propagates newly discovered resources live during execution. Cached globally for 7 days. |
+| **researcher** | Maps what's known, what's needed, and what could go wrong before the executor acts. Reads global memory and tools, analyzes context, identifies constraints and risks, and writes `RESEARCH.md` before every executor pass. Dynamic count (2–4) based on goal complexity, each assigned a universal domain: context & prior work, external knowledge & resources, requirements & constraints, environment & integration. |
+| **planner** | Reads all researcher output and resource discoveries. Creates atomic tasks tagged with parallel group markers: same `[GN]` = run in parallel, different `[GN]` = sequential dependency. Runs once at startup. |
+| **agent-factory** | Runs after planning. Reads `PLAN.md` and `TOOLS.md`, determines whether the goal needs domain specialists, and creates 1–3 purpose-built agents when beneficial. Writes `AGENTS.md` so executors know which specialists exist and when to use them. If generic agents are sufficient, creates nothing. |
+| **executor** | Reads `RESEARCH.md` and checks `AGENTS.md` for specialists before acting. Derives execution method from the goal — writes code, produces documents, processes data, runs pipelines, or whatever the task requires. Implements one task. Appends discoveries to `MEMORY.md` inline. Never marks tasks complete. |
+| **evaluator** | Verifies output quality using methods appropriate to the goal type — running tests, checking document structure, validating data, reviewing output against requirements. Checks at least one edge case flagged in `RESEARCH.md`. Reports pass/fail with detail. Never executes the goal itself. |
 | **verifier** | Dynamically written per loop with the actual stop condition. Runs it, marks `[x]` in `PLAN.md` on pass, writes error on fail. Hard rule: never marks done unless verification actually passed. |
-| **auditor** | Reviews the diff for security issues, tech debt, pattern violations, and missing boundary checks. Three outcomes: CLEAN (proceed), WARN (non-blocking), BLOCK (triggers one auto-fix attempt). |
-| **memory-keeper** | Distills new learnings into loop `MEMORY.md` and the shared `loop-stack/.global/MEMORY.md`. Runs twice per task batch: checkpoint after developers, full consolidation after auditors. |
+| **auditor** | Reviews output for goal alignment, quality, accuracy, and constraint violations. Three outcomes: CLEAN (proceed), WARN (non-blocking), BLOCK (triggers one auto-fix attempt). |
+| **memory-keeper** | Distills new learnings into loop `MEMORY.md` and the shared `loop-stack/.global/MEMORY.md`. Runs twice per task batch: checkpoint after executors, full consolidation after auditors. |
 
 ---
 
@@ -211,13 +215,14 @@ loop-stack/
     PLAN.md               ← goal, [G1]/[G2] task checklist, stop condition, budget
     STATUS.md             ← current state, attempt count, last result per agent
     MEMORY.md             ← learnings accumulated this loop
-    TOOLS.md              ← MCP servers, skills, project tools, Tool Usage Guide
+    TOOLS.md              ← resources, tools, APIs, usage guide
     RESEARCH.md           ← researcher findings per task
+    AGENTS.md             ← specialized agents created by agent-factory
     REPORT.md             ← written on completion
   <loop-id>_DONE/         ← renamed when complete; skipped by resume check
   .global/
     MEMORY.md             ← cross-loop project learnings (shared, persistent)
-    TOOLS.md              ← cached tool discovery (7-day TTL)
+    TOOLS.md              ← cached resource discovery (7-day TTL)
 ```
 
 ---

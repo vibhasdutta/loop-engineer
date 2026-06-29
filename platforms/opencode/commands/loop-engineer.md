@@ -1,6 +1,6 @@
 ---
-description: Start an autonomous loop-engineer session to orchestrate a multi-agent team for a development goal
+description: Start an autonomous loop-engineer session to orchestrate a self-assembling multi-agent team for any goal
 agent: build
 subtask: false
 ---
-Start a loop-engineer session to orchestrate an autonomous multi-agent team. I want to run a goal-driven development loop using the loop-engineer skill.
+Start a loop-engineer session to orchestrate an autonomous multi-agent team. I want to run a goal-driven loop using the loop-engineer skill.

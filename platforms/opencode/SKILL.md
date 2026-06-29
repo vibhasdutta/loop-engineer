@@ -1,9 +1,9 @@
----
+﻿---
 name: loop-engineer
 description: >
   Loop engineering wizard for OpenCode. Asks 2 questions, then orchestrates
-  a fully autonomous agent team (tool-scout, researcher, planner, developer,
-  qa-tester, verifier, auditor, memory-keeper) until the goal is met.
+  a fully autonomous agent team (resource-scout, researcher, planner, agent-factory, executor,
+  evaluator, verifier, auditor, memory-keeper) until the goal is met.
   Agents run sequentially via the task tool. Dynamic researcher count.
   Persistent memory, git integration, resume support.
 ---
@@ -39,7 +39,7 @@ Auto-set: `STOP_CONDITION` = "all tasks in loop-stack/<LOOP_ID>/PLAN.md checked"
 
 ## Phase 2 — State File Creation
 
-Create `loop-stack/<LOOP_ID>/` with PLAN.md (task stub), STATUS.md, MEMORY.md, TOOLS.md, RESEARCH.md.
+Create `loop-stack/<LOOP_ID>/` with PLAN.md (task stub), STATUS.md, MEMORY.md, TOOLS.md, RESEARCH.md, AGENTS.md.
 Create `loop-stack/.global/MEMORY.md` if missing.
 
 **PLAN.md:**
@@ -55,6 +55,12 @@ Create `loop-stack/.global/MEMORY.md` if missing.
     {yes / no}
     ## Tasks
     (will be created by the planner agent)
+
+**loop-stack/<LOOP_ID>/AGENTS.md:**
+
+    # Specialized Agents
+    ## Status
+    PENDING (agent-factory will populate after planning)
 
 **STATUS.md:**
 
@@ -73,9 +79,9 @@ Create `loop-stack/.global/MEMORY.md` if missing.
     (none)
     ## Last Researcher Result
     (none)
-    ## Last Developer Result
+    ## Last Executor Result
     (none)
-    ## Last QA Result
+    ## Last Evaluator Result
     (none)
     ## Last Audit Result
     (none)
@@ -115,12 +121,12 @@ Then write only `verifier.md` with actual STOP_CONDITION substituted (never writ
     2. Read [LOOP_DIR]/MEMORY.md, STATUS.md, PLAN.md.
     3. Run: {STOP_CONDITION}
     4. PASSES → set State VERIFIED_PASS, mark [x] in PLAN.md, update Task Progress. If all done: ALL DONE.
-    5. FAILS → set State FAILED, write exact error to Last Developer Result.
+    5. FAILS → set State FAILED, write exact error to Last Executor Result.
     HARD RULE: Never write application code. Never mark done unless verification actually passed.
 
 Confirm to user:
 > "loop-stack/<LOOP_ID>/ created: PLAN.md · STATUS.md · MEMORY.md · TOOLS.md · RESEARCH.md
-> .opencode/agents/ ready: tool-scout · researcher · planner · developer · qa-tester · verifier · auditor · memory-keeper
+> .opencode/agents/ ready: resource-scout · researcher · planner · agent-factory · executor · evaluator · verifier · auditor · memory-keeper
 > Starting startup sequence..."
 
 ---
@@ -137,10 +143,10 @@ Determine researcher count by goal complexity:
 - Large/multi-system → 4 researchers
 
 Domains to distribute across researchers:
-- **Architecture & Code**: source structure, patterns, package files, existing tests
-- **Domain & APIs**: README, docs/, external APIs, .env.example, configs
-- **Data & State**: DB schema, data models, state management (for 3+ researchers)
-- **Deployment & Config**: CI/CD, infrastructure, build, Docker (for 4 researchers)
+- **Context & Prior Work**: source structure, patterns, package files, existing tests
+- **External Knowledge & Resources**: README, docs/, external APIs, .env.example, configs
+- **Requirements & Constraints**: DB schema, data models, state management (for 3+ researchers)
+- **Environment & Integration**: CI/CD, infrastructure, build, Docker (for 4 researchers)
 
 Invoke each researcher sequentially using the `task` tool:
 ```
@@ -153,11 +159,11 @@ prompt: |
   Update STATUS.md "Last Researcher Result".
 ```
 
-### Step 2 — TOOL SCOUT
+### Step 2 — RESOURCE SCOUT
 
 Invoke using the `task` tool:
 ```
-agent: tool-scout
+agent: resource-scout
 prompt: |
   Loop directory: loop-stack/<LOOP_ID>/
   Check loop-stack/.global/TOOLS.md — if < 7 days old, reuse. Otherwise discover all tools.
@@ -176,6 +182,20 @@ prompt: |
   Same group = independent tasks (can conceptually run in parallel).
   Different group = sequential dependency.
   Replace "## Tasks" in PLAN.md. Update STATUS.md.
+```
+
+### Step 4 — AGENT FACTORY
+
+Invoke using the `task` tool:
+```
+agent: agent-factory
+prompt: |
+  Loop directory: loop-stack/<LOOP_ID>/
+  Read loop-stack/<LOOP_ID>/PLAN.md (goal + tasks), RESEARCH.md, and TOOLS.md.
+  Analyze the goal domain. Determine what specialized agents would improve execution quality.
+  Create 1–3 purpose-built agent files in .opencode/agents/ tailored to this goal's domain.
+  Write loop-stack/<LOOP_ID>/AGENTS.md listing each created agent and which tasks it handles.
+  If generic agents are sufficient, write AGENTS.md with "NONE CREATED".
 ```
 
 Auto-continue into outer loop immediately.
@@ -204,14 +224,14 @@ All agents are invoked via the `task` tool, one at a time, waiting for each to c
      GLOBAL DATA FIRST — read loop-stack/.global/MEMORY.md AND loop-stack/.global/TOOLS.md.
      Then read loop-stack/<LOOP_ID>/MEMORY.md, TOOLS.md, PLAN.md, STATUS.md.
      Current task: {this_task}
-     Research what the developer needs for THIS SPECIFIC TASK.
+     Research what the executor needs for THIS SPECIFIC TASK.
      Append findings to loop-stack/<LOOP_ID>/RESEARCH.md under "## Task-Specific Research — {this_task}".
    ```
    Increment turns_used.
 
-4. **DEVELOPERS** — invoke one per task sequentially:
+4. **EXECUTORS** — invoke one per task sequentially:
    ```
-   agent: developer
+   agent: executor
    prompt: |
      Loop directory: loop-stack/<LOOP_ID>/
      GLOBAL DATA FIRST — read loop-stack/.global/MEMORY.md AND loop-stack/.global/TOOLS.md.
@@ -224,7 +244,7 @@ All agents are invoked via the `task` tool, one at a time, waiting for each to c
 
 5. **MEMORY-KEEPER checkpoints** — invoke one per task sequentially. Local only.
 
-6. **QA TESTERS** — invoke one per task sequentially.
+6. **EVALUATORS** — invoke one per task sequentially.
 
 7. **VERIFIERS** — invoke one per task sequentially.
 
@@ -237,7 +257,7 @@ All agents are invoked via the `task` tool, one at a time, waiting for each to c
 
 10. **Process audit results**:
     - CLEAN/WARN → proceed
-    - BLOCK → auto-fix: invoke developer once more with BLOCK context + re-verify. Still BLOCK → auto-skip.
+    - BLOCK → auto-fix: invoke executor once more with BLOCK context + re-verify. Still BLOCK → auto-skip.
 
 11. **MEMORY-KEEPER final** — single invoke, local + global write.
 
@@ -261,11 +281,11 @@ Write `loop-stack/<LOOP_ID>_DONE/REPORT.md` and print summary to user.
 - **File copy**: `cp ~/.config/opencode/skills/loop-engineer/agents/*.md .opencode/agents/` — never manual.
 - **Global data first**: every agent reads `.global/MEMORY.md` + `.global/TOOLS.md` before acting.
 - **Sequential execution**: OpenCode's `task` tool runs one agent at a time — invoke each, wait, then proceed.
-- **Researcher before developer**: always. Dynamic count based on goal complexity.
-- **Memory-keeper twice per batch**: checkpoint (local) after devs, consolidation (local+global) after audit.
-- **Developers append to MEMORY.md directly** during work.
-- **Planner**: once at startup after researchers + tool-scout. Tasks MUST use [G1]/[G2] group tags.
+- **Researcher before executor**: always. Dynamic count based on goal complexity.
+- **Memory-keeper twice per batch**: checkpoint (local) after executors, consolidation (local+global) after audit.
+- **Executors append to MEMORY.md directly** during work.
+- **Planner**: once at startup after researchers + resource-scout. Tasks MUST use [G1]/[G2] group tags.
 - **Fully autonomous**: no pauses. 3 fails → auto-skip. BLOCK → auto-fix once → skip.
-- **doom_loop**: if OpenCode triggers doom_loop detection (3 identical tool calls), the developer agent has `doom_loop: allow` — the loop continues.
+- **doom_loop**: if OpenCode triggers doom_loop detection (3 identical tool calls), the executor agent has `doom_loop: allow` — the loop continues.
 - On completion: rename to `<LOOP_ID>_DONE/`.
 - **AGENTS.md**: copy `platforms/opencode/AGENTS.md` to the project root if not present — it gives OpenCode context about the loop.

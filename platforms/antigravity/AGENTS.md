@@ -38,6 +38,7 @@ All loop state lives in `loop-stack/<LOOP_ID>/`:
 - `MEMORY.md` — accumulated learnings (grows smarter each iteration)
 - `TOOLS.md` — discovered MCP servers, skills, plugins, project tooling + Tool Usage Guide
 - `RESEARCH.md` — researcher findings per task
+- `AGENTS.md` — specialized agents created by agent-factory after planning
 
 `loop-stack/.global/` — shared across all loops in this project:
 - `MEMORY.md` — cross-loop project learnings

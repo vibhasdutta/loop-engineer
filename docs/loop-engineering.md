@@ -36,9 +36,9 @@ This skill implements the outer loop for you.
 
 ---
 
-## Why It Matters for Coding
+## Why It Matters
 
-Coding is inherently iterative. Single-shot generation fails on runtime errors, environment-specific issues, and unverifiable output. The ReAct pattern (Reason + Act, from Princeton/Google research) is what makes agents actually converge — they run code, observe output, reason about failures, and revise. A loop harnesses this at scale.
+Any complex goal is iterative. Single-shot generation fails on unexpected conditions, environment-specific issues, and unverifiable output. The ReAct pattern (Reason + Act, from Princeton/Google research) is what makes agents actually converge — they act, observe output, reason about failures, and revise. A loop harnesses this at scale across any domain: code, research, content, data, or automation.
 
 ---
 
@@ -54,7 +54,7 @@ This skill implements Ralph automatically — every agent starts with a clean co
 
 The biggest loop engineering insight: **the agent that does the work should not verify its own work**. Self-grading is how loops hallucinate progress.
 
-This skill enforces the split: the developer agent implements, the verifier agent runs the stop condition. The verifier is explicitly forbidden from writing application code.
+This skill enforces the split: the executor agent does the work, the verifier agent runs the stop condition. The verifier is explicitly forbidden from producing goal output.
 
 ---
 

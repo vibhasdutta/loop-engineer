@@ -1,9 +1,9 @@
----
+﻿---
 name: loop-engineer
 description: >
   Loop engineering wizard for Antigravity. Asks 2 questions, then orchestrates
-  a fully autonomous parallel agent team (tool-scout, researcher, planner,
-  developer, qa-tester, verifier, auditor, memory-keeper) until the goal is met.
+  a fully autonomous parallel agent team (resource-scout, researcher, planner,
+  agent-factory, executor, evaluator, verifier, auditor, memory-keeper) until the goal is met.
   Uses invoke_subagent for true parallel dispatch. Researcher agents use the
   built-in research TypeName. Persistent memory, git integration, resume support.
 ---
@@ -39,7 +39,7 @@ Auto-set: `STOP_CONDITION` = "all tasks in loop-stack/<LOOP_ID>/PLAN.md checked"
 
 ## Phase 2 — State File Creation
 
-Create `loop-stack/<LOOP_ID>/` with PLAN.md (task stub), STATUS.md, MEMORY.md, TOOLS.md, RESEARCH.md.
+Create `loop-stack/<LOOP_ID>/` with PLAN.md (task stub), STATUS.md, MEMORY.md, TOOLS.md, RESEARCH.md, AGENTS.md.
 Create `loop-stack/.global/MEMORY.md` if missing.
 
 **PLAN.md:**
@@ -55,6 +55,38 @@ Create `loop-stack/.global/MEMORY.md` if missing.
     {yes / no}
     ## Tasks
     (will be created by the planner agent)
+
+**STATUS.md:**
+
+    # Loop Status
+    ## State
+    IN_PROGRESS
+    ## Current Task
+    (planning in progress)
+    ## Task Progress
+    0 / ? complete
+    ## Attempts On Current Task
+    0
+    ## Completed Tasks
+    (none)
+    ## Skipped Tasks
+    (none)
+    ## Last Researcher Result
+    (none)
+    ## Last Executor Result
+    (none)
+    ## Last Evaluator Result
+    (none)
+    ## Last Audit Result
+    (none)
+    ## Blocked Reason
+    (none)
+
+**loop-stack/<LOOP_ID>/AGENTS.md:**
+
+    # Specialized Agents
+    ## Status
+    PENDING (agent-factory will populate after planning)
 
 ---
 
@@ -85,7 +117,7 @@ Then write only `verifier.md` with the actual STOP_CONDITION substituted (never 
     2. Read [LOOP_DIR]/MEMORY.md, STATUS.md, PLAN.md.
     3. Run: {STOP_CONDITION}
     4. PASSES → State VERIFIED_PASS, mark [x], update Task Progress. All done → ALL DONE.
-    5. FAILS → State FAILED, write exact error to Last Developer Result.
+    5. FAILS → State FAILED, write exact error to Last Executor Result.
     HARD RULE: Never write application code. Never mark done unless verification passed.
 
 ---
@@ -107,10 +139,10 @@ Call `invoke_subagent` once with all researchers in the Subagents array (they ru
 Use `TypeName: "research"` — the built-in type optimized for codebase exploration.
 
 Domains to distribute:
-- **Architecture & Code**: source structure, patterns, package files, existing tests
-- **Domain & APIs**: README, docs/, external APIs, .env.example, configs
-- **Data & State**: DB schema, data models, state management (for 3+ researchers)
-- **Deployment & Config**: CI/CD, infrastructure, build, Docker (for 4 researchers)
+- **Context & Prior Work**: source structure, patterns, package files, existing tests
+- **External Knowledge & Resources**: README, docs/, external APIs, .env.example, configs
+- **Requirements & Constraints**: DB schema, data models, state management (for 3+ researchers)
+- **Environment & Integration**: CI/CD, infrastructure, build, Docker (for 4 researchers)
 
 Each researcher Prompt:
 ```
@@ -122,16 +154,16 @@ Update loop-stack/<LOOP_ID>/STATUS.md "Last Researcher Result".
 Read .agents/researcher.md for full instructions.
 ```
 
-### Step 2 — TOOL SCOUT
+### Step 2 — RESOURCE SCOUT
 
 Call `invoke_subagent` with one entry, `TypeName: "self"`:
 ```
 Loop directory: loop-stack/<LOOP_ID>/
 Check loop-stack/.global/TOOLS.md — if < 7 days old, reuse it.
 Otherwise discover all tools. Write to loop-stack/<LOOP_ID>/TOOLS.md AND loop-stack/.global/TOOLS.md.
-Read .agents/tool-scout.md for full instructions.
+Read .agents/resource-scout.md for full instructions.
 ```
-Wait for tool-scout to send its completion message.
+Wait for resource-scout to send its completion message.
 
 ### Step 3 — PLANNER
 
@@ -145,6 +177,20 @@ Replace "## Tasks" in PLAN.md. Update STATUS.md.
 Read .agents/planner.md for full instructions.
 ```
 Wait for planner to send its completion message.
+
+### Step 4 — AGENT FACTORY
+
+Call `invoke_subagent` with one entry, `TypeName: "self"`:
+```
+Loop directory: loop-stack/<LOOP_ID>/
+Read loop-stack/<LOOP_ID>/PLAN.md (goal + tasks), RESEARCH.md, and TOOLS.md.
+Analyze the goal domain. Determine what specialized agents would improve execution quality.
+Create 1–3 purpose-built agent files in .agents/ tailored to this goal's domain and tasks.
+Write loop-stack/<LOOP_ID>/AGENTS.md listing each created agent and which tasks it handles.
+If generic agents are sufficient, write AGENTS.md with "NONE CREATED".
+Read .agents/agent-factory.md for full instructions.
+```
+Wait for completion before proceeding to the outer loop.
 
 ---
 
@@ -173,7 +219,7 @@ For parallel steps: pass all agents as entries in one `invoke_subagent` call. Wa
    ```
    Wait for all. Increment turns_used.
 
-4. **Parallel DEVELOPERS** — one per task. Single `invoke_subagent` call, `TypeName: "self"`:
+4. **Parallel EXECUTORS** — one per task. Single `invoke_subagent` call, `TypeName: "self"`:
    ```
    Loop directory: loop-stack/<LOOP_ID>/
    GLOBAL DATA FIRST — read loop-stack/.global/MEMORY.md AND loop-stack/.global/TOOLS.md.
@@ -181,13 +227,13 @@ For parallel steps: pass all agents as entries in one `invoke_subagent` call. Wa
    READ: RESEARCH.md "## Task-Specific Research — {this_task}".
    Current task: {this_task}. Scope: only files for this task.
    Implement. Append discoveries to MEMORY.md directly. Update STATUS.md.
-   Read .agents/developer.md for full instructions.
+   Read .agents/executor.md for full instructions.
    ```
    Wait for all. Increment turns_used.
 
 5. **Parallel MEMORY-KEEPER checkpoints** — one per task (local only). `TypeName: "self"`. Wait for all.
 
-6. **Parallel QA TESTERS** — one per task. `TypeName: "self"`. Wait for all.
+6. **Parallel EVALUATORS** — one per task. `TypeName: "self"`. Wait for all.
 
 7. **Parallel VERIFIERS** — one per task. `TypeName: "self"`. Wait for all.
 
@@ -200,7 +246,7 @@ For parallel steps: pass all agents as entries in one `invoke_subagent` call. Wa
 
 10. **Process audit results**:
     - CLEAN/WARN → proceed
-    - BLOCK → auto-fix (one developer with BLOCK context, `TypeName: "self"`, re-run verifier). Still BLOCK → auto-skip.
+    - BLOCK → auto-fix (one executor with BLOCK context, `TypeName: "self"`, re-run verifier). Still BLOCK → auto-skip.
 
 11. **MEMORY-KEEPER final** — single `invoke_subagent`, `TypeName: "self"`, local + global write. Wait.
 
@@ -223,9 +269,9 @@ Write `loop-stack/<LOOP_ID>_DONE/REPORT.md` and print summary.
 - **invoke_subagent**: parallel = multiple Subagents entries in one call. Sequential = separate calls. Wait for completion messages between steps.
 - **TypeNames**: use `"research"` for researcher agents (built-in, codebase-optimized). Use `"self"` for all others.
 - **Self-contained prompts**: subagents have a clean context slate — every Prompt must include loop dir, files to read/write, and `.agents/{role}.md` reference.
-- **Researcher before developer**: always. Dynamic count based on goal complexity.
-- **Memory-keeper twice per batch**: checkpoint (local) after devs, consolidation (local+global) after audit.
-- **Developers append to MEMORY.md directly** during work.
+- **Researcher before executor**: always. Dynamic count based on goal complexity.
+- **Memory-keeper twice per batch**: checkpoint (local) after executors, consolidation (local+global) after audit.
+- **Executors append to MEMORY.md directly** during work.
 - **Planner**: once at startup. Tasks MUST include [G1]/[G2] parallel group tags.
 - **Fully autonomous**: no pauses. 3 fails → auto-skip. BLOCK → auto-fix once → skip.
 - On completion: rename to `<LOOP_ID>_DONE/`.
