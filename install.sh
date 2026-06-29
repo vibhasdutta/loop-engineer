@@ -50,24 +50,31 @@ install_gemini() {
 }
 
 install_antigravity() {
-  # Install for Antigravity CLI (agy)
+  # CLI (agy): ~/.gemini/antigravity-cli/skills/
   local cli_dir="${HOME}/.gemini/antigravity-cli/skills/loop-engineer"
   mkdir -p "$cli_dir/agents"
   cp "$REPO_DIR/platforms/antigravity/SKILL.md" "$cli_dir/SKILL.md"
   cp "$REPO_DIR/platforms/antigravity/AGENTS.md" "$cli_dir/AGENTS.md"
   cp "$REPO_DIR/platforms/antigravity/agents/"*.md "$cli_dir/agents/"
-  echo "Antigravity CLI: installed to $cli_dir"
+  echo "Antigravity CLI (agy): installed to $cli_dir"
 
-  # Install for Antigravity 2.0 desktop
-  local app_dir="${HOME}/.agents/skills/loop-engineer"
+  # IDE (VS Code / JetBrains extension): ~/.gemini/antigravity/skills/
+  local ide_dir="${HOME}/.gemini/antigravity/skills/loop-engineer"
+  mkdir -p "$ide_dir/agents"
+  cp "$REPO_DIR/platforms/antigravity/SKILL.md" "$ide_dir/SKILL.md"
+  cp "$REPO_DIR/platforms/antigravity/AGENTS.md" "$ide_dir/AGENTS.md"
+  cp "$REPO_DIR/platforms/antigravity/agents/"*.md "$ide_dir/agents/"
+  echo "Antigravity IDE: installed to $ide_dir"
+
+  # 2.0 desktop: ~/.gemini/config/skills/
+  local app_dir="${HOME}/.gemini/config/skills/loop-engineer"
   mkdir -p "$app_dir/agents"
   cp "$REPO_DIR/platforms/antigravity/SKILL.md" "$app_dir/SKILL.md"
   cp "$REPO_DIR/platforms/antigravity/AGENTS.md" "$app_dir/AGENTS.md"
   cp "$REPO_DIR/platforms/antigravity/agents/"*.md "$app_dir/agents/"
-  echo "Antigravity 2.0: installed to $app_dir"
+  echo "Antigravity 2.0 desktop: installed to $app_dir"
 
   echo "Copy platforms/antigravity/AGENTS.md to your project root for workspace context."
-  echo "For CLI migration from Gemini CLI, run: agy plugin import gemini"
 }
 
 install_opencode() {

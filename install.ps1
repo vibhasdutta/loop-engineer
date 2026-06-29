@@ -71,24 +71,31 @@ function Install-Gemini {
 }
 
 function Install-Antigravity {
-    # Install for Antigravity CLI (agy)
+    # CLI (agy): ~/.gemini/antigravity-cli/skills/
     $cliDir = "$env:USERPROFILE\.gemini\antigravity-cli\skills\loop-engineer"
     New-Item -ItemType Directory -Force "$cliDir\agents" | Out-Null
     Copy-Item "$RepoDir\platforms\antigravity\SKILL.md" "$cliDir\SKILL.md" -Force
     Copy-Item "$RepoDir\platforms\antigravity\AGENTS.md" "$cliDir\AGENTS.md" -Force
     Copy-Item "$RepoDir\platforms\antigravity\agents\*.md" "$cliDir\agents\" -Force
-    Write-Host "Antigravity CLI: installed to $cliDir"
+    Write-Host "Antigravity CLI (agy): installed to $cliDir"
 
-    # Install for Antigravity 2.0 desktop
-    $appDir = "$env:USERPROFILE\.agents\skills\loop-engineer"
+    # IDE (VS Code / JetBrains extension): ~/.gemini/antigravity/skills/
+    $ideDir = "$env:USERPROFILE\.gemini\antigravity\skills\loop-engineer"
+    New-Item -ItemType Directory -Force "$ideDir\agents" | Out-Null
+    Copy-Item "$RepoDir\platforms\antigravity\SKILL.md" "$ideDir\SKILL.md" -Force
+    Copy-Item "$RepoDir\platforms\antigravity\AGENTS.md" "$ideDir\AGENTS.md" -Force
+    Copy-Item "$RepoDir\platforms\antigravity\agents\*.md" "$ideDir\agents\" -Force
+    Write-Host "Antigravity IDE: installed to $ideDir"
+
+    # 2.0 desktop: ~/.gemini/config/skills/
+    $appDir = "$env:USERPROFILE\.gemini\config\skills\loop-engineer"
     New-Item -ItemType Directory -Force "$appDir\agents" | Out-Null
     Copy-Item "$RepoDir\platforms\antigravity\SKILL.md" "$appDir\SKILL.md" -Force
     Copy-Item "$RepoDir\platforms\antigravity\AGENTS.md" "$appDir\AGENTS.md" -Force
     Copy-Item "$RepoDir\platforms\antigravity\agents\*.md" "$appDir\agents\" -Force
-    Write-Host "Antigravity 2.0: installed to $appDir"
+    Write-Host "Antigravity 2.0 desktop: installed to $appDir"
 
     Write-Host "Copy platforms\antigravity\AGENTS.md to your project root for workspace context."
-    Write-Host "For CLI migration from Gemini CLI, run: agy plugin import gemini"
 }
 
 function Install-OpenCode {

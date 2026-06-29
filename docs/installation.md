@@ -104,9 +104,10 @@ Restart Gemini CLI or run `/skills reload` inside a session, then describe a mul
 
 ## Antigravity
 
-Installs to both surfaces simultaneously:
-- **Antigravity CLI (`agy`)**: `~/.gemini/antigravity-cli/skills/loop-engineer/`
-- **Antigravity 2.0 (desktop)**: `~/.agents/skills/loop-engineer/`
+Each surface has its own global skills directory. The installer covers all three:
+- **Antigravity CLI** (`agy`): `~/.gemini/antigravity-cli/skills/loop-engineer/`
+- **Antigravity IDE** (VS Code / JetBrains): `~/.gemini/antigravity/skills/loop-engineer/`
+- **Antigravity 2.0** (desktop): `~/.gemini/config/skills/loop-engineer/`
 
 ### macOS / Linux
 
@@ -130,15 +131,11 @@ Copy `platforms/antigravity/AGENTS.md` to your project root for workspace contex
 cp platforms/antigravity/AGENTS.md /path/to/your/project/AGENTS.md
 ```
 
-If migrating from Gemini CLI, run once after install:
-```bash
-agy plugin import gemini
-```
-
 ### Verify
 
-In `agy` TUI: use `/skills` to confirm the skill is listed, then describe a multi-step goal.
-In Antigravity 2.0: open `/skills` from the chat interface.
+**CLI**: type `/loop-engineer` in the `agy` prompt, or describe a multi-step goal.
+**IDE**: open the agent panel → `...` → Customizations → Skills — confirm `loop-engineer` is listed.
+**2.0**: open Settings → Customizations → Skills — confirm `loop-engineer` is listed.
 
 ---
 

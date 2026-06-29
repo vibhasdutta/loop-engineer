@@ -41,8 +41,9 @@ You describe a goal in one or two sentences. The skill breaks it into 3–7 atom
 |---|---|---|---|
 | **Claude Code** | `/loop-engineer` | `Agent` tool | ✅ true parallel |
 | **Cursor** | `/loop-engineer` | `Agent` tool | ✅ true parallel |
-| **Antigravity CLI** (`agy`) | `/loop-engineer` | prose dispatch | ✅ true parallel |
-| **Antigravity 2.0** (desktop) | `/loop-engineer` | prose dispatch | ✅ true parallel |
+| **Antigravity CLI** (`agy`) | `/loop-engineer` | `invoke_subagent` | ✅ true parallel |
+| **Antigravity IDE** (VS Code / JetBrains) | `/loop-engineer` | `invoke_subagent` | ✅ true parallel |
+| **Antigravity 2.0** (desktop) | `/loop-engineer` | `invoke_subagent` | ✅ true parallel |
 | **Hermes Agent** | `/loop-engineer` | `delegate_task` | ✅ true parallel |
 | **Gemini CLI** | `/loop-engineer` | named agent tools | ⚡ sequential |
 | **OpenCode** | `/loop-engineer` | `task` tool | ⚡ sequential |
@@ -228,8 +229,9 @@ loop-stack/
 | Claude Code | `CLAUDE.md` | `.claude/agents/` | `~/.claude/skills/` | `~/.claude/settings.json` |
 | Cursor | `.cursorrules` / `CLAUDE.md` | `.cursor/agents/` | `~/.cursor/skills/` | `~/.cursor/mcp.json` |
 | Gemini CLI | `GEMINI.md` | `.gemini/agents/` | `~/.gemini/skills/` | `~/.gemini/settings.json` |
-| Antigravity CLI | `AGENTS.md` | `.agents/` | `~/.gemini/antigravity-cli/skills/` | `~/.gemini/antigravity-cli/mcp_config.json` |
-| Antigravity 2.0 | `AGENTS.md` | `.agents/` | `~/.agents/skills/` | `~/.agents/mcp_config.json` |
+| Antigravity CLI | `AGENTS.md` | `.agents/` | `~/.gemini/antigravity-cli/skills/` | `~/.gemini/config/mcp_config.json` |
+| Antigravity IDE | `AGENTS.md` | `.agents/` | `~/.gemini/antigravity/skills/` | `~/.gemini/config/mcp_config.json` |
+| Antigravity 2.0 | `AGENTS.md` | `.agents/` | `~/.gemini/config/skills/` | `~/.gemini/config/mcp_config.json` |
 | OpenCode | `AGENTS.md` | `.opencode/agents/` | `~/.config/opencode/skills/` | `opencode.json` → `mcp` key |
 | Hermes Agent | `HERMES.md` / `.hermes.md` | `.hermes/agents/` | `~/.hermes/skills/` | `~/.hermes/config.yaml` → `mcp_servers` |
 

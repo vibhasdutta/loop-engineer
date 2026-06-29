@@ -18,26 +18,29 @@ Note: LOOP_DIR is provided in the spawning prompt (e.g., `loop-stack/add-auth-fl
 Steps:
 1. Read [LOOP_DIR]/PLAN.md — understand the goal and stop condition.
 2. Discover what's available by reading:
-   - ~/.gemini/antigravity-cli/mcp_config.json — global MCP config for Antigravity CLI (agy)
-   - ~/.agents/mcp_config.json — global MCP config for Antigravity 2.0 desktop
-   - .agents/mcp_config.json — workspace-level MCP config (both surfaces)
-   - ~/.gemini/antigravity-cli/settings.json — CLI permissions, sandbox config
-   - ~/.gemini/antigravity-cli/skills/ — global skills installed for Antigravity CLI
-   - ~/.agents/skills/ — global skills installed for Antigravity 2.0
-   - .agents/skills/ — workspace-level skills (both surfaces)
+   - ~/.gemini/config/mcp_config.json — global MCP servers (all surfaces)
+   - .agents/mcp_config.json — workspace MCP servers
+   - ~/.gemini/antigravity-cli/plugins/ — global plugins for CLI (agy); read plugin.json per plugin
+   - ~/.gemini/config/plugins/ — global plugins for IDE / 2.0; read plugin.json per plugin
+   - .agents/plugins/ or _agents/plugins/ — workspace plugins (all surfaces)
+   - ~/.gemini/antigravity-cli/skills/ — global skills for CLI (agy)
+   - ~/.gemini/antigravity/skills/ — global skills for IDE (VS Code/JetBrains)
+   - ~/.gemini/config/skills/ — global skills for 2.0 desktop
+   - .agents/skills/ — workspace skills (all surfaces)
    - package.json / pyproject.toml / Cargo.toml / go.mod — project dependencies and scripts
    - .env or .env.example — environment variables (names only, not values)
-   Note: MCP remote servers use "serverUrl" key (not "url" or "httpUrl") — check configs for this.
+   Note: Remote MCP servers use "serverUrl" key (not "url" or "httpUrl").
+   MCP tools are accessible as mcp__<server>__<tool> in the agent.
 3. Cross-reference what you found with the goal. Decide which tools are relevant.
 4. Write [LOOP_DIR]/TOOLS.md with this structure:
 
    # Discovered Tools
 
    ## MCP Servers Available
-   {list name and purpose of each configured MCP server}
+   {list name and purpose of each configured MCP server from mcp_config.json files}
 
    ## Plugins / Skills Available
-   {list installed plugins and skills}
+   {list installed plugins (with their bundled skills/MCPs) and standalone skills}
 
    ## Project Tools
    {test runner, build tool, linter, package manager — from project files}

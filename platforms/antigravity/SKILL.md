@@ -4,9 +4,8 @@ description: >
   Loop engineering wizard for Antigravity. Asks 2 questions, then orchestrates
   a fully autonomous parallel agent team (tool-scout, researcher, planner,
   developer, qa-tester, verifier, auditor, memory-keeper) until the goal is met.
-  Multiple agents dispatched in parallel via prose-based dispatch. Dynamic researcher
-  count, multiple developers on independent parts simultaneously. Persistent memory,
-  git integration, resume support.
+  Uses invoke_subagent for true parallel dispatch. Researcher agents use the
+  built-in research TypeName. Persistent memory, git integration, resume support.
 ---
 
 # Loop Engineer (Antigravity)
@@ -63,28 +62,25 @@ Create `loop-stack/.global/MEMORY.md` if missing.
 
 **CRITICAL: Use shell commands — do NOT write agent files manually.**
 
-**Antigravity CLI (`agy`) — global skill path:**
 ```bash
 mkdir -p .agents
-cp ~/.gemini/antigravity-cli/skills/loop-engineer/agents/*.md .agents/
+# Try all three surface paths: CLI, IDE, 2.0
+cp ~/.gemini/antigravity-cli/skills/loop-engineer/agents/*.md .agents/ 2>/dev/null || \
+cp ~/.gemini/antigravity/skills/loop-engineer/agents/*.md .agents/ 2>/dev/null || \
+cp ~/.gemini/config/skills/loop-engineer/agents/*.md .agents/
 ```
 
-**Antigravity 2.0 (desktop) — global skill path:**
+If none of the paths have files, remind the user to install first:
 ```bash
-mkdir -p .agents
-cp ~/.agents/skills/loop-engineer/agents/*.md .agents/
+git clone https://github.com/vibhasdutta/loop-engineer
+cd loop-engineer && bash install.sh --antigravity
 ```
 
-If neither path exists, remind the user to install the skill first:
-- CLI: `agy plugin install https://github.com/vibhasdutta/loop-engineer` then copy from `~/.gemini/antigravity-cli/skills/loop-engineer/agents/`
-- 2.0: install via the Plugins panel, then copy from `~/.agents/skills/loop-engineer/agents/`
+Then write only `verifier.md` with the actual STOP_CONDITION substituted (never write the literal placeholder):
 
-Then write only `verifier.md` with actual STOP_CONDITION substituted (never write the literal placeholder):
+    # Verifier Agent
+    You are the verifier agent. Never write application code.
 
-    ---
-    name: verifier
-    description: Runs the stop condition. Marks tasks done or failed. Never writes application code.
-    ---
     1. Read loop-stack/.global/MEMORY.md FIRST.
     2. Read [LOOP_DIR]/MEMORY.md, STATUS.md, PLAN.md.
     3. Run: {STOP_CONDITION}
@@ -96,9 +92,9 @@ Then write only `verifier.md` with actual STOP_CONDITION substituted (never writ
 
 ## Phase 4 — Startup Sequence
 
-Dispatch template: "Dispatch a subagent with these instructions: [instructions]. The subagent should read `.agents/{role}.md`. Do not proceed until this subagent has updated STATUS.md."
+Use `invoke_subagent` to spawn parallel agents. Pass multiple entries in the `Subagents` array to run them simultaneously. Wait for all subagents to send completion messages before proceeding to the next step.
 
-For parallel steps: dispatch all subagents in the same turn, then wait for all to update STATUS.md before proceeding.
+**IMPORTANT:** Subagents start with a clean slate — no parent context. Every `Prompt` must be fully self-contained with the loop directory path, what to read, what to write, and a reference to the agent's instruction file in `.agents/`.
 
 ### Step 1 — Parallel RESEARCHERS (dynamic count)
 
@@ -107,33 +103,48 @@ Determine researcher count by goal complexity:
 - Medium/multi-domain → 3 researchers
 - Large/multi-system → 4 researchers
 
-**Dispatch all researchers simultaneously** in the same turn:
+Call `invoke_subagent` once with all researchers in the Subagents array (they run in parallel).
+Use `TypeName: "research"` — the built-in type optimized for codebase exploration.
 
-> "Dispatch {N} researcher subagents in parallel with these instructions. Each reads `.agents/researcher.md`. Do not proceed until all have updated STATUS.md."
-
-Domains to distribute across researchers:
+Domains to distribute:
 - **Architecture & Code**: source structure, patterns, package files, existing tests
 - **Domain & APIs**: README, docs/, external APIs, .env.example, configs
 - **Data & State**: DB schema, data models, state management (for 3+ researchers)
 - **Deployment & Config**: CI/CD, infrastructure, build, Docker (for 4 researchers)
 
-Each researcher instruction:
+Each researcher Prompt:
 ```
 Loop directory: loop-stack/<LOOP_ID>/
 Focus: {ASSIGNED_DOMAIN} — {specific files and concerns}
 GLOBAL DATA FIRST: read loop-stack/.global/MEMORY.md and loop-stack/.global/TOOLS.md.
 Write findings to loop-stack/<LOOP_ID>/RESEARCH.md under "## {Domain Name}".
-Update STATUS.md "Last Researcher Result".
+Update loop-stack/<LOOP_ID>/STATUS.md "Last Researcher Result".
 Read .agents/researcher.md for full instructions.
 ```
 
 ### Step 2 — TOOL SCOUT
 
-> "Dispatch a tool-scout subagent. It reads `.agents/tool-scout.md`. Instructions: Loop directory: loop-stack/<LOOP_ID>/. Check loop-stack/.global/TOOLS.md — if < 7 days old, reuse. Otherwise discover all tools. Write to loop-stack/<LOOP_ID>/TOOLS.md AND loop-stack/.global/TOOLS.md. Do not proceed until tool-scout has written TOOLS.md."
+Call `invoke_subagent` with one entry, `TypeName: "self"`:
+```
+Loop directory: loop-stack/<LOOP_ID>/
+Check loop-stack/.global/TOOLS.md — if < 7 days old, reuse it.
+Otherwise discover all tools. Write to loop-stack/<LOOP_ID>/TOOLS.md AND loop-stack/.global/TOOLS.md.
+Read .agents/tool-scout.md for full instructions.
+```
+Wait for tool-scout to send its completion message.
 
 ### Step 3 — PLANNER
 
-> "Dispatch a planner subagent. It reads `.agents/planner.md`. Instructions: Loop directory: loop-stack/<LOOP_ID>/. Read RESEARCH.md (all sections) and TOOLS.md. Create 3–7 tasks with parallel group tags [G1], [G2], etc. Same group = parallel (independent files/modules). Different group = sequential dependency. Replace '## Tasks' in PLAN.md. Update STATUS.md. Do not proceed until planner has written tasks to PLAN.md."
+Call `invoke_subagent` with one entry, `TypeName: "self"`:
+```
+Loop directory: loop-stack/<LOOP_ID>/
+Read RESEARCH.md (all sections) and TOOLS.md.
+Create 3–7 tasks with parallel group tags [G1], [G2], etc.
+Same group = parallel (independent files/modules). Different group = sequential dependency.
+Replace "## Tasks" in PLAN.md. Update STATUS.md.
+Read .agents/planner.md for full instructions.
+```
+Wait for planner to send its completion message.
 
 ---
 
@@ -143,10 +154,7 @@ Read .agents/researcher.md for full instructions.
 
 Initialize: `turns_used = 0`, `skipped_tasks = []`.
 
-Dispatch template for all agents:
-> "Dispatch a {role} subagent. It reads `.agents/{role}.md`. Instructions: [instructions below]. Do not proceed to the next step until this subagent has updated STATUS.md."
-
-For parallel steps: dispatch ALL subagents for that step in the same turn, then wait for all.
+For parallel steps: pass all agents as entries in one `invoke_subagent` call. Wait for all to send completion messages before proceeding.
 
 ### Iteration steps:
 
@@ -154,9 +162,18 @@ For parallel steps: dispatch ALL subagents for that step in the same turn, then 
 
 2. **Read state** — identify current parallel group (all unchecked [GN] tasks).
 
-3. **Parallel RESEARCHERS** — dispatch one per task (2 if batch=1). All in same turn. Each appends to RESEARCH.md. Wait for all. Increment turns_used.
+3. **Parallel RESEARCHERS** — one per task (2 if batch=1). Single `invoke_subagent` call, `TypeName: "research"`:
+   ```
+   Loop directory: loop-stack/<LOOP_ID>/
+   GLOBAL DATA FIRST — read loop-stack/.global/MEMORY.md AND loop-stack/.global/TOOLS.md.
+   Focus: {ASSIGNED_DOMAIN} for task: {this_task}
+   Append findings to RESEARCH.md under "## Task-Specific Research — {this_task}".
+   Update STATUS.md "Last Researcher Result".
+   Read .agents/researcher.md for full instructions.
+   ```
+   Wait for all. Increment turns_used.
 
-4. **Parallel DEVELOPERS** — dispatch one per task in same turn:
+4. **Parallel DEVELOPERS** — one per task. Single `invoke_subagent` call, `TypeName: "self"`:
    ```
    Loop directory: loop-stack/<LOOP_ID>/
    GLOBAL DATA FIRST — read loop-stack/.global/MEMORY.md AND loop-stack/.global/TOOLS.md.
@@ -168,24 +185,24 @@ For parallel steps: dispatch ALL subagents for that step in the same turn, then 
    ```
    Wait for all. Increment turns_used.
 
-5. **Parallel MEMORY-KEEPER checkpoints** — dispatch one per task (local only). Wait for all.
+5. **Parallel MEMORY-KEEPER checkpoints** — one per task (local only). `TypeName: "self"`. Wait for all.
 
-6. **Parallel QA TESTERS** — dispatch one per task. Wait for all.
+6. **Parallel QA TESTERS** — one per task. `TypeName: "self"`. Wait for all.
 
-7. **Parallel VERIFIERS** — dispatch one per task. Wait for all.
+7. **Parallel VERIFIERS** — one per task. `TypeName: "self"`. Wait for all.
 
 8. **Process verifier results**:
    - PASS → auditor
    - FAIL < 3 → retry from step 3
    - FAIL ≥ 3 → auto-skip
 
-9. **Parallel AUDITORS** (passing tasks only) — dispatch one per passing task. Wait for all.
+9. **Parallel AUDITORS** (passing tasks only) — one per task. `TypeName: "self"`. Wait for all.
 
 10. **Process audit results**:
     - CLEAN/WARN → proceed
-    - BLOCK → auto-fix (dispatch developer once with BLOCK context, re-dispatch verifier). Still BLOCK → auto-skip.
+    - BLOCK → auto-fix (one developer with BLOCK context, `TypeName: "self"`, re-run verifier). Still BLOCK → auto-skip.
 
-11. **MEMORY-KEEPER final** — dispatch single subagent, local + global write. Wait for completion.
+11. **MEMORY-KEEPER final** — single `invoke_subagent`, `TypeName: "self"`, local + global write. Wait.
 
 12. **Advance** — mark [x], git commit if enabled. Find next group.
     None → ALL DONE → rename `loop-stack/<LOOP_ID>/` → `loop-stack/<LOOP_ID>_DONE/` → Phase 6.
@@ -201,15 +218,17 @@ Write `loop-stack/<LOOP_ID>_DONE/REPORT.md` and print summary.
 ## Rules
 
 - Phase 0 first. Skip `_DONE` folders.
-- **File copy**: CLI → `~/.gemini/antigravity-cli/skills/loop-engineer/agents/*.md`; 2.0 → `~/.agents/skills/loop-engineer/agents/*.md`. Never write manually.
+- **File copy**: try CLI path (`~/.gemini/antigravity-cli/skills/`), then IDE path (`~/.gemini/antigravity/skills/`), then 2.0 path (`~/.gemini/config/skills/`). Never write manually.
 - **Global data first**: every agent reads `.global/MEMORY.md` + `.global/TOOLS.md` before acting.
-- **Parallel first**: Antigravity supports true parallel subagents — dispatch all agents for the same step in the same turn. Wait for all before next step.
+- **invoke_subagent**: parallel = multiple Subagents entries in one call. Sequential = separate calls. Wait for completion messages between steps.
+- **TypeNames**: use `"research"` for researcher agents (built-in, codebase-optimized). Use `"self"` for all others.
+- **Self-contained prompts**: subagents have a clean context slate — every Prompt must include loop dir, files to read/write, and `.agents/{role}.md` reference.
 - **Researcher before developer**: always. Dynamic count based on goal complexity.
 - **Memory-keeper twice per batch**: checkpoint (local) after devs, consolidation (local+global) after audit.
 - **Developers append to MEMORY.md directly** during work.
-- **Planner**: once at startup after researchers + tool-scout. Tasks MUST include [G1]/[G2] parallel group tags.
+- **Planner**: once at startup. Tasks MUST include [G1]/[G2] parallel group tags.
 - **Fully autonomous**: no pauses. 3 fails → auto-skip. BLOCK → auto-fix once → skip.
 - On completion: rename to `<LOOP_ID>_DONE/`.
-- **Context pollution**: if the main session context becomes noisy mid-loop, use `/rewind` to roll back turns rather than starting fresh.
-- **AGENTS.md**: ensure `AGENTS.md` (from `platforms/antigravity/AGENTS.md`) is in the project root — both CLI and 2.0 read it as system context.
-- **MCP config**: use `serverUrl` (not `url` or `httpUrl`) for remote MCP servers in `mcp_config.json`.
+- **Monitor**: use `manage_subagents(Action: "list")` to check running subagents if needed.
+- **AGENTS.md**: ensure `AGENTS.md` is in the project root for workspace context.
+- **MCP config**: remote servers require `serverUrl` field (not `url` or `httpUrl`).
