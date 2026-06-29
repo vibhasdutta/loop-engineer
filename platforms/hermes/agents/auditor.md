@@ -1,9 +1,6 @@
 ---
 name: auditor
 description: Reviews completed work for quality, security, and tech debt. Checks against MEMORY.md patterns. Non-blocking unless critical.
-kind: local
-max_turns: 15
-temperature: 0.2
 ---
 
 You are the auditor agent.

@@ -7,8 +7,11 @@
 | `/loop-engineer` | [Claude Code](https://claude.ai/code) (CLI or desktop app) | any |
 | `/loop-engineer` | [Cursor](https://cursor.com) | any |
 | `/loop-engineer` | [Gemini CLI](https://github.com/google-gemini/gemini-cli) | any |
-| `/loop-engineer` | [Antigravity](https://deepmind.google/technologies/gemini/antigravity/) | any |
-| `/loop-engineer-codex` | [Codex CLI](https://github.com/openai/codex) | 0.128.0+ |
+| `/loop-engineer` | [Antigravity CLI (`agy`)](https://antigravity.google/docs/cli-overview) | any |
+| `/loop-engineer` | [Antigravity 2.0 (desktop)](https://antigravity.google/download) | any |
+| `/loop-engineer` | [OpenCode](https://opencode.ai) | any |
+| `/loop-engineer` | [Hermes Agent](https://hermes-agent.nousresearch.com) | any |
+| `/loop-engineer` | [Codex CLI](https://github.com/openai/codex) | 0.128.0+ |
 
 ---
 
@@ -93,20 +96,17 @@ cd loop-engineer
 .\install.ps1 -Gemini
 ```
 
-Then register the extension:
-```bash
-gemini extension install ~/.gemini/skills/loop-engineer
-```
-
 ### Verify
 
-Describe a multi-step goal to Gemini CLI — the skill activates automatically.
+Restart Gemini CLI or run `/skills reload` inside a session, then describe a multi-step goal — the skill activates automatically. Use `/loop-engineer` as a shortcut (installed to `~/.gemini/commands/`).
 
 ---
 
 ## Antigravity
 
-Installs to `~/.gemini/skills/loop-engineer/`.
+Installs to both surfaces simultaneously:
+- **Antigravity CLI (`agy`)**: `~/.gemini/antigravity-cli/skills/loop-engineer/`
+- **Antigravity 2.0 (desktop)**: `~/.agents/skills/loop-engineer/`
 
 ### macOS / Linux
 
@@ -115,13 +115,97 @@ git clone https://github.com/vibhasdutta/loop-engineer.git
 cd loop-engineer && bash install.sh --antigravity
 ```
 
-Also copy `platforms/antigravity/AGENTS.md` to your project root for workspace context.
+### Windows (PowerShell)
+
+```powershell
+git clone https://github.com/vibhasdutta/loop-engineer.git
+cd loop-engineer
+.\install.ps1 -Antigravity
+```
+
+### Post-install
+
+Copy `platforms/antigravity/AGENTS.md` to your project root for workspace context:
+```bash
+cp platforms/antigravity/AGENTS.md /path/to/your/project/AGENTS.md
+```
+
+If migrating from Gemini CLI, run once after install:
+```bash
+agy plugin import gemini
+```
+
+### Verify
+
+In `agy` TUI: use `/skills` to confirm the skill is listed, then describe a multi-step goal.
+In Antigravity 2.0: open `/skills` from the chat interface.
+
+---
+
+## OpenCode
+
+Installs to `~/.config/opencode/skills/loop-engineer/`.
+
+> Note: OpenCode auto-discovers skills from `~/.claude/skills/` too — if you have Claude Code installed, the skill is already available. The OpenCode-specific install adds native `task`-tool agent files and the `/loop-engineer` command.
+
+### macOS / Linux
+
+```bash
+git clone https://github.com/vibhasdutta/loop-engineer.git
+cd loop-engineer && bash install.sh --opencode
+```
+
+### Windows (PowerShell)
+
+```powershell
+git clone https://github.com/vibhasdutta/loop-engineer.git
+cd loop-engineer
+.\install.ps1 -OpenCode
+```
+
+### Verify
+
+Restart OpenCode, then type `/loop-engineer` in any project. Or describe a multi-step goal — the skill activates via the native `skill` tool.
+
+---
+
+## Hermes Agent
+
+Installs to `~/.hermes/skills/loop-engineer/`.
+
+### macOS / Linux
+
+```bash
+git clone https://github.com/vibhasdutta/loop-engineer.git
+cd loop-engineer && bash install.sh --hermes
+```
+
+### Windows (PowerShell)
+
+```powershell
+git clone https://github.com/vibhasdutta/loop-engineer.git
+cd loop-engineer
+.\install.ps1 -Hermes
+```
+
+### Post-install
+
+Copy `platforms/hermes/HERMES.md` to your project root for workspace context:
+```bash
+cp platforms/hermes/HERMES.md /path/to/your/project/HERMES.md
+```
+
+This file is auto-injected into every Hermes session in that project directory.
+
+### Verify
+
+In any Hermes session, type `/loop-engineer` or describe a multi-step goal. Use `hermes skills` in the terminal to confirm the skill appears.
 
 ---
 
 ## Codex CLI
 
-Installs to `~/.codex/skills/loop-engineer-codex/`.
+Installs to `~/.codex/skills/loop-engineer/`. Requires Codex CLI v0.128.0+ with `features.multi_agent = true` in your Codex config.
 
 ### One-liner (macOS / Linux)
 
@@ -139,11 +223,13 @@ cd loop-engineer
 
 ### Verify
 
-In a Codex session, type `/loop-engineer-codex` in any project.
+In a Codex session, type `/loop-engineer`. The skill scaffolds state files and prints the `/goal` command to paste for the actual loop run.
 
 ---
 
 ## Install all platforms at once
+
+Installs Claude Code, Cursor, Gemini CLI, Codex CLI, OpenCode, and Hermes Agent.
 
 **macOS / Linux:**
 ```bash

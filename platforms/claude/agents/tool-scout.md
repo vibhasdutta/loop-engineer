@@ -44,5 +44,13 @@ Steps:
    ## Not Relevant
    {tools found but not useful for this goal}
 
+   ## Tool Usage Guide
+   {One line per tool in "Recommended for This Goal" — exact invocation so developers can use it without guessing:}
+   - **{exact callable name}**: {key parameters or CLI syntax} — {when to reach for this}
+
+   For MCP tools, write the tool name as Claude exposes it (e.g. mcp__github__create_issue).
+   For skills, write the slash command (e.g. /database-query) or how to activate it.
+   For project tools, write the exact command with useful flags (e.g. npm test, cargo test -- --nocapture).
+
 5. Do NOT write, edit, or delete any application code.
 6. Stop after writing [LOOP_DIR]/TOOLS.md.

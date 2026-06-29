@@ -74,11 +74,20 @@ cp ~/.gemini/skills/loop-engineer/agents/auditor.md .gemini/agents/
 cp ~/.gemini/skills/loop-engineer/agents/memory-keeper.md .gemini/agents/
 ```
 
+If the skill files are missing (skill not yet installed), remind the user to run:
+```bash
+gemini skills install https://github.com/vibhasdutta/loop-engineer
+```
+Or for local install after git clone: `gemini skills link ./path/to/loop-engineer`
+
 Then write only `verifier.md` with actual STOP_CONDITION substituted:
 
     ---
     name: verifier
     description: Runs the stop condition. Marks tasks done or failed. Never writes application code.
+    kind: local
+    max_turns: 15
+    temperature: 0.1
     ---
     1. Read loop-stack/.global/MEMORY.md FIRST.
     2. Read [LOOP_DIR]/MEMORY.md, STATUS.md, PLAN.md.
@@ -91,16 +100,16 @@ Then write only `verifier.md` with actual STOP_CONDITION substituted:
 
 ## Phase 4 — Startup Sequence
 
-Use `invoke_subagent` for all agents. For parallel steps, invoke multiple subagents back-to-back in the same response, then wait for all to complete before proceeding.
+Invoke agents by calling their named agent tool (each agent in `.gemini/agents/` becomes a callable tool). Gemini runs subagents sequentially — invoke each agent in turn, wait for completion, then proceed to the next. For "parallel" steps, invoke each agent one after the other in the same logical step before moving on.
 
-### Step 1 — Parallel RESEARCHERS (dynamic count)
+### Step 1 — RESEARCHERS (dynamic count, sequential)
 
 Determine researcher count by goal complexity:
 - Simple/single-domain → 2 researchers
 - Medium/multi-domain → 3 researchers
 - Large/multi-system → 4 researchers
 
-**Invoke all researchers in the same response** (N back-to-back invoke_subagent calls):
+**Invoke all researchers sequentially** (call each researcher agent in turn, wait for each before the next):
 
 Domains to distribute:
 - **Architecture & Code**: source structure, patterns, package files, tests
@@ -121,7 +130,7 @@ Wait for all researchers to complete before Step 2.
 
 ### Step 2 — TOOL SCOUT
 
-invoke_subagent with `.gemini/agents/tool-scout.md`:
+Invoke the `tool-scout` agent:
 ```
 Loop directory: loop-stack/<LOOP_ID>/
 Check loop-stack/.global/TOOLS.md — if < 7 days old, reuse. Otherwise discover all tools.
@@ -131,7 +140,7 @@ Wait for subagent to complete.
 
 ### Step 3 — PLANNER
 
-invoke_subagent with `.gemini/agents/planner.md`:
+Invoke the `planner` agent:
 ```
 Loop directory: loop-stack/<LOOP_ID>/
 Read RESEARCH.md (all sections) and TOOLS.md.
@@ -149,7 +158,7 @@ Wait for subagent to complete. Auto-continue into outer loop.
 
 Initialize: `turns_used = 0`, `skipped_tasks = []`.
 
-For each iteration invoke_subagent calls are done in parallel for the same step, then the next step begins.
+Agents run sequentially — invoke each, wait for completion, then invoke the next.
 
 ### Iteration steps:
 
@@ -157,10 +166,10 @@ For each iteration invoke_subagent calls are done in parallel for the same step,
 
 2. **Read state** — identify current parallel group (all unchecked [GN] tasks).
 
-3. **Parallel RESEARCHERS** — invoke one per task in batch (2 if batch=1). All in same response.
-   Each appends to RESEARCH.md. Wait for all. Increment turns_used.
+3. **RESEARCHERS** — invoke one per task in batch sequentially (2 if batch=1).
+   Each appends to RESEARCH.md. Increment turns_used.
 
-4. **Parallel DEVELOPERS** — invoke one per task in same response:
+4. **DEVELOPERS** — invoke one per task sequentially:
    ```
    Loop directory: loop-stack/<LOOP_ID>/
    GLOBAL DATA FIRST — read loop-stack/.global/MEMORY.md AND loop-stack/.global/TOOLS.md.
@@ -169,26 +178,26 @@ For each iteration invoke_subagent calls are done in parallel for the same step,
    Current task: {this_task}. Scope: only files for this task.
    Implement. Append discoveries to MEMORY.md. Update STATUS.md.
    ```
-   Wait for all. Increment turns_used.
+   Increment turns_used.
 
-5. **Parallel MEMORY-KEEPER checkpoints** — invoke one per task. Local only. Wait for all.
+5. **MEMORY-KEEPER checkpoints** — invoke one per task sequentially. Local only.
 
-6. **Parallel QA TESTERS** — invoke one per task. Wait for all.
+6. **QA TESTERS** — invoke one per task sequentially.
 
-7. **Parallel VERIFIERS** — invoke one per task. Wait for all.
+7. **VERIFIERS** — invoke one per task sequentially.
 
 8. **Process verifier results**:
    - PASS → auditor
    - FAIL < 3 → retry from step 3
    - FAIL ≥ 3 → auto-skip
 
-9. **Parallel AUDITORS** (passing tasks). Wait for all.
+9. **AUDITORS** — invoke one per passing task sequentially.
 
 10. **Process audit results**:
     - CLEAN/WARN → proceed
     - BLOCK → auto-fix (one developer retry + re-verify). Still BLOCK → auto-skip.
 
-11. **MEMORY-KEEPER final** — single invoke, local + global write. Wait for completion.
+11. **MEMORY-KEEPER final** — single invoke, local + global write.
 
 12. **Advance** — mark [x], git commit if enabled. Find next group.
     None → ALL DONE → rename `loop-stack/<LOOP_ID>/` → `loop-stack/<LOOP_ID>_DONE/` → Phase 6.
@@ -206,10 +215,13 @@ Write `loop-stack/<LOOP_ID>_DONE/REPORT.md` and print summary.
 - Phase 0 first. Skip `_DONE` folders.
 - **File copy**: `cp ~/.gemini/skills/loop-engineer/agents/*.md .gemini/agents/` — never manual.
 - **Global data first**: every agent reads `.global/MEMORY.md` + `.global/TOOLS.md` before acting.
-- **Parallel first**: same group = all invoke_subagent in same response, wait for all before next step.
+- **Sequential execution**: Gemini subagents run one at a time — invoke each agent, wait, then invoke the next. Same group tasks still run in the same logical step before advancing to the next group.
 - **Researcher before developer**: always. Dynamic count based on goal complexity.
 - **Memory-keeper twice per batch**: checkpoint (local) after devs, consolidation (local+global) after audit.
 - **Developers append to MEMORY.md directly** during work.
-- **Planner**: once at startup after researchers + tool-scout.
+- **Planner**: once at startup after researchers + tool-scout. Tasks MUST use [G1]/[G2] group tags.
 - **Fully autonomous**: no pauses. 3 fails → auto-skip. BLOCK → auto-fix once → skip.
 - On completion: rename to `<LOOP_ID>_DONE/`.
+- **GEMINI.md**: copy `platforms/gemini/GEMINI.md` to the project root if not present — it guides skill activation.
+- **Checkpointing**: Gemini CLI auto-checkpoints sessions. Loop state in `loop-stack/` survives context resets independently — both layers complement each other.
+- **Project-level MCP config**: `.gemini/settings.json` in the project root overrides global settings — tool-scout checks both.

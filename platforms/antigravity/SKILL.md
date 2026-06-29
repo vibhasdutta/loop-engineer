@@ -63,18 +63,23 @@ Create `loop-stack/.global/MEMORY.md` if missing.
 
 **CRITICAL: Use shell commands — do NOT write agent files manually.**
 
+**Antigravity CLI (`agy`) — global skill path:**
 ```bash
 mkdir -p .agents
-cp ~/.gemini/skills/loop-engineer/agents/tool-scout.md .agents/
-cp ~/.gemini/skills/loop-engineer/agents/researcher.md .agents/
-cp ~/.gemini/skills/loop-engineer/agents/planner.md .agents/
-cp ~/.gemini/skills/loop-engineer/agents/developer.md .agents/
-cp ~/.gemini/skills/loop-engineer/agents/qa-tester.md .agents/
-cp ~/.gemini/skills/loop-engineer/agents/auditor.md .agents/
-cp ~/.gemini/skills/loop-engineer/agents/memory-keeper.md .agents/
+cp ~/.gemini/antigravity-cli/skills/loop-engineer/agents/*.md .agents/
 ```
 
-Then write only `verifier.md` with actual STOP_CONDITION substituted:
+**Antigravity 2.0 (desktop) — global skill path:**
+```bash
+mkdir -p .agents
+cp ~/.agents/skills/loop-engineer/agents/*.md .agents/
+```
+
+If neither path exists, remind the user to install the skill first:
+- CLI: `agy plugin install https://github.com/vibhasdutta/loop-engineer` then copy from `~/.gemini/antigravity-cli/skills/loop-engineer/agents/`
+- 2.0: install via the Plugins panel, then copy from `~/.agents/skills/loop-engineer/agents/`
+
+Then write only `verifier.md` with actual STOP_CONDITION substituted (never write the literal placeholder):
 
     ---
     name: verifier
@@ -196,12 +201,15 @@ Write `loop-stack/<LOOP_ID>_DONE/REPORT.md` and print summary.
 ## Rules
 
 - Phase 0 first. Skip `_DONE` folders.
-- **File copy**: `cp ~/.gemini/skills/loop-engineer/agents/*.md .agents/` — never manual.
+- **File copy**: CLI → `~/.gemini/antigravity-cli/skills/loop-engineer/agents/*.md`; 2.0 → `~/.agents/skills/loop-engineer/agents/*.md`. Never write manually.
 - **Global data first**: every agent reads `.global/MEMORY.md` + `.global/TOOLS.md` before acting.
-- **Parallel first**: dispatch all agents for the same step in the same turn. Wait for all before next step.
+- **Parallel first**: Antigravity supports true parallel subagents — dispatch all agents for the same step in the same turn. Wait for all before next step.
 - **Researcher before developer**: always. Dynamic count based on goal complexity.
 - **Memory-keeper twice per batch**: checkpoint (local) after devs, consolidation (local+global) after audit.
 - **Developers append to MEMORY.md directly** during work.
-- **Planner**: once at startup after researchers + tool-scout.
+- **Planner**: once at startup after researchers + tool-scout. Tasks MUST include [G1]/[G2] parallel group tags.
 - **Fully autonomous**: no pauses. 3 fails → auto-skip. BLOCK → auto-fix once → skip.
 - On completion: rename to `<LOOP_ID>_DONE/`.
+- **Context pollution**: if the main session context becomes noisy mid-loop, use `/rewind` to roll back turns rather than starting fresh.
+- **AGENTS.md**: ensure `AGENTS.md` (from `platforms/antigravity/AGENTS.md`) is in the project root — both CLI and 2.0 read it as system context.
+- **MCP config**: use `serverUrl` (not `url` or `httpUrl`) for remote MCP servers in `mcp_config.json`.

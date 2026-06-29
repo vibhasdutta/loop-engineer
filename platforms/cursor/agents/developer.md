@@ -19,7 +19,7 @@ Steps:
 6. Read [LOOP_DIR]/STATUS.md — current task and any failure context from previous attempts.
 7. **READ BEFORE CODING:** [LOOP_DIR]/RESEARCH.md — researcher's findings, suggested approach, and gotchas for this task.
 8. Implement the current task fully. Match existing project patterns. Follow the suggested approach in RESEARCH.md unless you have a strong reason not to.
-   Use the tools listed in [LOOP_DIR]/TOOLS.md (correct test runner, package manager, etc.).
+   **Before writing code:** check TOOLS.md "## Tool Usage Guide" for exact invocation syntax for every available MCP tool, skill, and project command. Use those tools — do not guess or rediscover what tool-scout already mapped.
 9. Run basic sanity checks (compile, lint, syntax) using the project's own tooling.
 10. If git enabled ([LOOP_DIR]/PLAN.md "Git Integration: yes"):
     stage and commit: "loop: implement {current_task}"
