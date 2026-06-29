@@ -73,7 +73,7 @@ cd loop-engineer
 bash install.sh              # Claude Code (default)
 bash install.sh --cursor     # Cursor
 bash install.sh --gemini     # Gemini CLI
-bash install.sh --antigravity # Antigravity (CLI + 2.0 desktop)
+bash install.sh --antigravity # Antigravity (CLI + IDE + 2.0)
 bash install.sh --opencode   # OpenCode
 bash install.sh --hermes     # Hermes Agent
 bash install.sh --codex      # OpenAI Codex CLI
@@ -88,7 +88,7 @@ cd loop-engineer
 .\install.ps1              # Claude Code (default)
 .\install.ps1 -Cursor      # Cursor
 .\install.ps1 -Gemini      # Gemini CLI
-.\install.ps1 -Antigravity # Antigravity (CLI + 2.0 desktop)
+.\install.ps1 -Antigravity # Antigravity (CLI + IDE + 2.0)
 .\install.ps1 -OpenCode    # OpenCode
 .\install.ps1 -Hermes      # Hermes Agent
 .\install.ps1 -Codex       # OpenAI Codex CLI
@@ -111,9 +111,9 @@ cd loop-engineer
 /loop-engineer
 ```
 
-**Antigravity** — in `agy` TUI or Antigravity 2.0, describe a goal or use:
+**Antigravity** — in `agy`, IDE, or 2.0, describe a goal or type:
 ```
-/goal  I want to add authentication to my API
+/loop-engineer
 ```
 
 **OpenCode** — open any project and type:
