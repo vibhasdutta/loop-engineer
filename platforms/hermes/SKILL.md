@@ -82,6 +82,8 @@ Create `loop-stack/.global/MEMORY.md` if missing.
     ## Status
     PENDING (agent-factory will populate after planning)
 
+Create `loop-stack/<LOOP_ID>/agents/` directory (agent-factory will write specialist agents here).
+
 **PLAN.md:**
 
     # Loop Plan
@@ -104,7 +106,9 @@ Create `loop-stack/.global/MEMORY.md` if missing.
 
 ```bash
 mkdir -p .hermes/agents
+mkdir -p .hermes/agents/knowledge-sources
 cp ~/.hermes/skills/loop-engineer/agents/*.md .hermes/agents/
+cp ~/.hermes/skills/loop-engineer/agents/knowledge-sources/*.md .hermes/agents/knowledge-sources/
 ```
 
 If the path doesn't exist, remind the user to install the skill first:
@@ -191,7 +195,7 @@ Call `delegate_task` with:
 Loop directory: loop-stack/<LOOP_ID>/
 Read loop-stack/<LOOP_ID>/PLAN.md (goal + tasks), RESEARCH.md, and TOOLS.md.
 Analyze the goal domain and determine what specialized agents would improve execution quality.
-Create 1–3 purpose-built agent files in .hermes/agents/ tailored to this goal's domain and tasks.
+Create 1–3 purpose-built agent files in loop-stack/<LOOP_ID>/agents/ tailored to this goal's domain and tasks.
 Write loop-stack/<LOOP_ID>/AGENTS.md listing each created agent and which tasks it handles.
 If the generic agents are sufficient, write AGENTS.md with "NONE CREATED" and skip creating files.
 Follow .hermes/agents/agent-factory.md.
@@ -232,6 +236,7 @@ For each dispatch step: use `delegate_task` for all agents in the same step simu
    READ: RESEARCH.md "## Task-Specific Research — {this_task}".
    Current task: {this_task}. Scope: only files for this task.
    Implement. Append discoveries to MEMORY.md directly. Update STATUS.md.
+   Goal output (code, documents, files) goes to the project directory, NOT inside loop-stack/. loop-stack/ is state-only.
    Read .hermes/agents/executor.md for full instructions.
    ```
    Wait for all. Increment turns_used.

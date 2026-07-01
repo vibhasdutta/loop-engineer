@@ -132,6 +132,8 @@ Create `loop-stack/<LOOP_ID>/` directory and write these files:
     ## Status
     PENDING (agent-factory will populate after planning)
 
+Create `loop-stack/<LOOP_ID>/agents/` directory (agent-factory will write specialist agents here).
+
 Initialize global memory if not present:
 - `loop-stack/.global/MEMORY.md` — create with header if missing
 
@@ -146,6 +148,7 @@ Create `.claude/agents/` if it does not exist, then run:
 **Bash (macOS/Linux):**
 ```bash
 mkdir -p .claude/agents
+mkdir -p .claude/agents/knowledge-sources
 cp ~/.claude/skills/loop-engineer/agents/resource-scout.md .claude/agents/
 cp ~/.claude/skills/loop-engineer/agents/researcher.md .claude/agents/
 cp ~/.claude/skills/loop-engineer/agents/planner.md .claude/agents/
@@ -154,12 +157,15 @@ cp ~/.claude/skills/loop-engineer/agents/executor.md .claude/agents/
 cp ~/.claude/skills/loop-engineer/agents/evaluator.md .claude/agents/
 cp ~/.claude/skills/loop-engineer/agents/auditor.md .claude/agents/
 cp ~/.claude/skills/loop-engineer/agents/memory-keeper.md .claude/agents/
+cp ~/.claude/skills/loop-engineer/agents/knowledge-sources/*.md .claude/agents/knowledge-sources/
 ```
 
 **PowerShell (Windows):**
 ```powershell
 New-Item -ItemType Directory -Force .claude\agents | Out-Null
+New-Item -ItemType Directory -Force ".claude\agents\knowledge-sources" | Out-Null
 Copy-Item "$env:USERPROFILE\.claude\skills\loop-engineer\agents\*.md" ".claude\agents\"
+Copy-Item "$env:USERPROFILE\.claude\skills\loop-engineer\agents\knowledge-sources\*.md" ".claude\agents\knowledge-sources\"
 ```
 
 After copying, write **only** `verifier.md` — substituting the actual STOP_CONDITION (never write the literal placeholder):
@@ -254,7 +260,7 @@ Follow .claude/agents/planner.md.
 Loop directory: loop-stack/<LOOP_ID>/
 Read loop-stack/<LOOP_ID>/PLAN.md (goal + tasks), RESEARCH.md, and TOOLS.md.
 Analyze the goal domain and determine what specialized agents (beyond the core team) would improve execution quality.
-Create 1–3 purpose-built agent files in .claude/agents/ tailored to this goal's domain and tasks.
+Create 1–3 purpose-built agent files in loop-stack/<LOOP_ID>/agents/ tailored to this goal's domain and tasks.
 Write loop-stack/<LOOP_ID>/AGENTS.md listing each created agent and which tasks it handles.
 If the generic agents are sufficient, write AGENTS.md with "NONE CREATED" and skip creating files.
 Follow .claude/agents/agent-factory.md.
@@ -325,6 +331,7 @@ Scope: work ONLY on output related to {this_task} — do not touch work being ha
 Previous attempt: {Last Executor Result for this task from STATUS.md}
 Execute fully. Append any new discoveries (patterns, gotchas, tool behaviors, domain learnings) directly to loop-stack/<LOOP_ID>/MEMORY.md.
 Update STATUS.md "Last Executor Result" for this task.
+Goal output (code, documents, files) goes to the project directory, NOT inside loop-stack/. loop-stack/ is state-only.
 Follow .claude/agents/executor.md (or the specialized agent from AGENTS.md if applicable).
 ```
 

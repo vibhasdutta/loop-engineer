@@ -89,6 +89,8 @@ Create `loop-stack/.global/MEMORY.md` if missing.
     ## Status
     PENDING (agent-factory will populate after planning)
 
+Create `loop-stack/<LOOP_ID>/agents/` directory (agent-factory will write specialist agents here).
+
 ---
 
 ## Phase 3 — Agent File Setup
@@ -97,6 +99,7 @@ Create `loop-stack/.global/MEMORY.md` if missing.
 
 ```bash
 mkdir -p .gemini/agents
+mkdir -p .gemini/agents/knowledge-sources
 cp ~/.gemini/skills/loop-engineer/agents/resource-scout.md .gemini/agents/
 cp ~/.gemini/skills/loop-engineer/agents/researcher.md .gemini/agents/
 cp ~/.gemini/skills/loop-engineer/agents/planner.md .gemini/agents/
@@ -105,6 +108,7 @@ cp ~/.gemini/skills/loop-engineer/agents/executor.md .gemini/agents/
 cp ~/.gemini/skills/loop-engineer/agents/evaluator.md .gemini/agents/
 cp ~/.gemini/skills/loop-engineer/agents/auditor.md .gemini/agents/
 cp ~/.gemini/skills/loop-engineer/agents/memory-keeper.md .gemini/agents/
+cp ~/.gemini/skills/loop-engineer/agents/knowledge-sources/*.md .gemini/agents/knowledge-sources/
 ```
 
 If the skill files are missing (skill not yet installed), remind the user to run:
@@ -190,7 +194,7 @@ Invoke the `agent-factory` agent:
 Loop directory: loop-stack/<LOOP_ID>/
 Read loop-stack/<LOOP_ID>/PLAN.md (goal + tasks), RESEARCH.md, and TOOLS.md.
 Analyze the goal domain. Determine what specialized agents would improve execution quality.
-Create 1–3 purpose-built agent files in .gemini/agents/ tailored to this goal's domain.
+Create 1–3 purpose-built agent files in loop-stack/<LOOP_ID>/agents/ tailored to this goal's domain.
 Write loop-stack/<LOOP_ID>/AGENTS.md listing each created agent and which tasks it handles.
 If generic agents are sufficient, write AGENTS.md with "NONE CREATED".
 ```
@@ -223,6 +227,7 @@ Agents run sequentially — invoke each, wait for completion, then invoke the ne
    READ: RESEARCH.md "## Task-Specific Research — {this_task}".
    Current task: {this_task}. Scope: only files for this task.
    Implement. Append discoveries to MEMORY.md. Update STATUS.md.
+   Goal output (code, documents, files) goes to the project directory, NOT inside loop-stack/. loop-stack/ is state-only.
    ```
    Increment turns_used.
 

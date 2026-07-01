@@ -88,6 +88,8 @@ Create `loop-stack/.global/MEMORY.md` if missing.
     ## Status
     PENDING (agent-factory will populate after planning)
 
+Create `loop-stack/<LOOP_ID>/agents/` directory (agent-factory will write specialist agents here).
+
 ---
 
 ## Phase 3 — Agent File Setup
@@ -96,10 +98,14 @@ Create `loop-stack/.global/MEMORY.md` if missing.
 
 ```bash
 mkdir -p .agents
+mkdir -p .agents/knowledge-sources
 # Try all three surface paths: CLI, IDE, 2.0
 cp ~/.gemini/antigravity-cli/skills/loop-engineer/agents/*.md .agents/ 2>/dev/null || \
 cp ~/.gemini/antigravity/skills/loop-engineer/agents/*.md .agents/ 2>/dev/null || \
 cp ~/.gemini/config/skills/loop-engineer/agents/*.md .agents/
+cp ~/.gemini/antigravity-cli/skills/loop-engineer/agents/knowledge-sources/*.md .agents/knowledge-sources/ 2>/dev/null || \
+cp ~/.gemini/antigravity/skills/loop-engineer/agents/knowledge-sources/*.md .agents/knowledge-sources/ 2>/dev/null || \
+cp ~/.gemini/config/skills/loop-engineer/agents/knowledge-sources/*.md .agents/knowledge-sources/
 ```
 
 If none of the paths have files, remind the user to install first:
@@ -185,7 +191,7 @@ Call `invoke_subagent` with one entry, `TypeName: "self"`:
 Loop directory: loop-stack/<LOOP_ID>/
 Read loop-stack/<LOOP_ID>/PLAN.md (goal + tasks), RESEARCH.md, and TOOLS.md.
 Analyze the goal domain. Determine what specialized agents would improve execution quality.
-Create 1–3 purpose-built agent files in .agents/ tailored to this goal's domain and tasks.
+Create 1–3 purpose-built agent files in loop-stack/<LOOP_ID>/agents/ tailored to this goal's domain and tasks.
 Write loop-stack/<LOOP_ID>/AGENTS.md listing each created agent and which tasks it handles.
 If generic agents are sufficient, write AGENTS.md with "NONE CREATED".
 Read .agents/agent-factory.md for full instructions.
@@ -227,6 +233,7 @@ For parallel steps: pass all agents as entries in one `invoke_subagent` call. Wa
    READ: RESEARCH.md "## Task-Specific Research — {this_task}".
    Current task: {this_task}. Scope: only files for this task.
    Implement. Append discoveries to MEMORY.md directly. Update STATUS.md.
+   Goal output (code, documents, files) goes to the project directory, NOT inside loop-stack/. loop-stack/ is state-only.
    Read .agents/executor.md for full instructions.
    ```
    Wait for all. Increment turns_used.

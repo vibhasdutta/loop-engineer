@@ -25,8 +25,9 @@
 │  loop-stack/<id>/ PLAN.md · STATUS.md           │
 │                   MEMORY.md · TOOLS.md          │
 │                   RESEARCH.md · AGENTS.md       │
+│                   agents/ (for specialists)     │
 │                   + .global/                    │
-│  .claude/agents/ × 9                            │
+│  <platform>/agents/ × 9 + knowledge-sources/   │
 └──────────────┬──────────────────────────────────┘
                │
                ▼
@@ -53,6 +54,7 @@
 │  Step 4 — Agent Factory                              │
 │    Reads PLAN.md + TOOLS.md                          │
 │    Creates 1–3 specialized agent files if needed     │
+│    Writes to loop-stack/<id>/agents/ (loop-specific) │
 │    Writes AGENTS.md manifest                         │
 │    Creates nothing if generic agents are sufficient  │
 └──────────────┬───────────────────────────────────────┘
@@ -109,14 +111,14 @@
 
 | Agent | Role | Writes goal output? |
 |---|---|---|
-| `resource-scout` | Discovers all available resources — MCP servers, skills, local tools, APIs, datasets. Writes TOOLS.md with a usage guide. Checks 7-day global cache first. | No |
-| `researcher` | Maps what's known, what's needed, and what could go wrong before the executor acts. Writes RESEARCH.md before every executor pass. Dynamic count (2–4). | No |
-| `planner` | Creates atomic tasks tagged with [G1]/[G2] parallel group markers. Runs once at startup. | No |
-| `agent-factory` | Reads PLAN.md and TOOLS.md after planning. Creates 1–3 specialized agent files when the goal benefits from domain expertise. Writes AGENTS.md manifest. Creates nothing if generic agents are sufficient. | No |
-| `executor` | Reads RESEARCH.md and checks AGENTS.md for specialists before acting. Derives execution method from the goal — writes code, produces documents, processes data, or whatever the task requires. Appends discoveries to MEMORY.md inline. | Yes |
-| `evaluator` | Verifies output quality using methods appropriate to the goal type. Derives verification approach from the goal and task — not a preset checklist. Reports pass/fail with detail. | No |
+| `resource-scout` | Discovers all available resources — MCP servers, skills, local tools, APIs, datasets. Writes TOOLS.md with a usage guide of exact callable names and invocation syntax. Checks 7-day global cache first. | No |
+| `researcher` | Consults `knowledge-sources.md` to find the right research channels for the goal domain (33 categories covering search engines, code repos, package registries, APIs, security, finance, medical, etc.), then researches across those channels — prioritizing existing MCPs, skills, libraries, and APIs before building from scratch. Writes `RESEARCH.md` with 7 sections: Context & Prior Work, Existing Tools & Resources, Requirements & Constraints, Suggested Approach, Verification Criteria, Quality Standards, Prior Attempt Analysis. Three audiences: executor (how), evaluator (verify), auditor (quality). Dynamic count (2–4). Runs before every executor pass. | No |
+| `planner` | Creates atomic tasks tagged with [G1]/[G2] parallel group markers. Same group = parallel, different group = sequential dependency. Runs once at startup. | No |
+| `agent-factory` | Reads PLAN.md and TOOLS.md after planning. Creates 1–3 specialized agent files when the goal benefits from domain expertise. Writes them to `loop-stack/<LOOP_ID>/agents/` (loop-specific, not platform-global). Writes AGENTS.md manifest listing each specialist and which tasks it handles. Creates nothing if generic agents are sufficient. | No |
+| `executor` | Reads RESEARCH.md, checks AGENTS.md for loop-specific specialists (from `loop-stack/<LOOP_ID>/agents/`), then derives execution method from the goal — writes code, produces documents, processes data, or whatever the task requires. Goal output always goes to the project directory, never inside loop-stack/. Appends discoveries to MEMORY.md inline. | Yes |
+| `evaluator` | Reads RESEARCH.md `## Verification Criteria` first — the researcher already defined what passing looks like for this task. Then confirms output is in the right place (project directory, not loop-stack/), satisfies those criteria, and is complete. Reports pass/fail with specifics. | No |
 | `verifier` | Dynamically written per loop with the actual stop condition. Marks [x] in PLAN.md on pass. Hard rule: never marks done unless verification passed. | No |
-| `auditor` | Reviews for goal alignment, quality, accuracy, and constraint violations. Three outcomes: CLEAN (proceed), WARN (non-blocking), BLOCK (auto-fix once). | No |
+| `auditor` | Reads RESEARCH.md `## Quality Standards` first — the researcher documented what good output looks like vs. what to avoid for this task. Catches problems the evaluator wouldn't: things that technically work but aren't done the right way. Three outcomes: CLEAN (proceed), WARN (non-blocking), BLOCK (auto-fix once). | No |
 | `memory-keeper` | Distills learnings into loop MEMORY.md and global .global/MEMORY.md. Runs twice per batch: checkpoint after executors, consolidation after auditors. | No |
 
 Only the executor produces goal output. All other agents are explicitly forbidden from doing so.
@@ -135,21 +137,16 @@ On **Claude Code**, **Cursor**, **Antigravity**, **Hermes Agent**, and **Codex C
 | `loop-stack/<id>/STATUS.md` | Live state — current task, attempts, last results. Survives context resets. |
 | `loop-stack/<id>/MEMORY.md` | Accumulated learnings — grows smarter each iteration |
 | `loop-stack/<id>/TOOLS.md` | Discovered MCPs, skills, tools, APIs, datasets |
-| `loop-stack/<id>/RESEARCH.md` | Researcher findings for current task — read by executor, evaluator, auditor |
+| `loop-stack/<id>/RESEARCH.md` | 7-section researcher output: Context & Prior Work, Existing Tools & Resources, Requirements & Constraints, Suggested Approach, Verification Criteria (for evaluator), Quality Standards (for auditor), Prior Attempt Analysis |
 | `loop-stack/<id>/AGENTS.md` | Specialized agents manifest created by agent-factory |
+| `loop-stack/<id>/agents/` | Loop-specific domain specialists written by agent-factory |
 | `loop-stack/<id>/REPORT.md` | Generated on completion — outcome, tasks, learnings, tools used |
 | `loop-stack/<id>_DONE/` | Loop directory renamed on completion — Phase 1 skips these |
 | `loop-stack/.global/MEMORY.md` | Cross-loop learnings (shared across all loops) |
 | `loop-stack/.global/TOOLS.md` | Cached tool discovery (7-day TTL, shared across all loops) |
-| `.claude/agents/resource-scout.md` | Agent definition for resource discovery |
-| `.claude/agents/researcher.md` | Agent definition for pre-task research |
-| `.claude/agents/planner.md` | Agent definition for task planning |
-| `.claude/agents/agent-factory.md` | Agent definition for specialist creation |
-| `.claude/agents/executor.md` | Agent definition for goal execution |
-| `.claude/agents/evaluator.md` | Agent definition for output quality verification |
-| `.claude/agents/verifier.md` | Agent definition for stop condition checking |
-| `.claude/agents/auditor.md` | Agent definition for quality review |
-| `.claude/agents/memory-keeper.md` | Agent definition for learning distillation |
+| `<platform-agents>/` | Agent definitions copied from the skill on setup (e.g. `.claude/agents/` for Claude Code, `.codex/agents/` for Codex, `.opencode/agents/` for OpenCode) |
+| `<platform-agents>/knowledge-sources.md` | Index mapping goal type → which category files to read |
+| `<platform-agents>/knowledge-sources/` | 33 category reference files (search engines, GitHub, package managers, APIs, security, finance, medical, etc.) — researcher reads these to find the right sources for the goal domain |
 
 All state lives in `loop-stack/`. You can inspect any file at any time to see progress.
 

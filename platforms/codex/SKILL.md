@@ -87,6 +87,8 @@ Create `loop-stack/<LOOP_ID>/` with:
 **RESEARCH.md:** `# Research Log\n## Context & Prior Work\n(pending)\n## External Knowledge & Resources\n(pending)\n## Task-Specific Research\n(pending)`
 **AGENTS.md:** `# Specialized Agents\n## Status\nPENDING (agent-factory will populate after planning)`
 
+Create `loop-stack/<LOOP_ID>/agents/` directory (agent-factory will write specialist agents here).
+
 Create `loop-stack/.global/MEMORY.md` if missing.
 
 ---
@@ -100,13 +102,19 @@ Create `.codex/agents/` then copy agent TOML files:
 **PowerShell (Windows):**
 ```powershell
 New-Item -ItemType Directory -Force .codex\agents | Out-Null
+New-Item -ItemType Directory -Force ".codex\knowledge-sources" | Out-Null
 Copy-Item "$env:USERPROFILE\.codex\skills\loop-engineer\agents\*.toml" ".codex\agents\"
+Copy-Item "$env:USERPROFILE\.codex\skills\loop-engineer\knowledge-sources\*.md" ".codex\knowledge-sources\"
+Copy-Item "$env:USERPROFILE\.codex\skills\loop-engineer\knowledge-sources.md" ".codex\knowledge-sources.md"
 ```
 
 **Bash (macOS/Linux):**
 ```bash
 mkdir -p .codex/agents
+mkdir -p .codex/knowledge-sources
 cp ~/.codex/skills/loop-engineer/agents/*.toml .codex/agents/
+cp ~/.codex/skills/loop-engineer/knowledge-sources/*.md .codex/knowledge-sources/
+cp ~/.codex/skills/loop-engineer/knowledge-sources.md .codex/knowledge-sources.md
 ```
 
 Then write only `verifier.toml` with the actual STOP_CONDITION substituted:
@@ -193,7 +201,7 @@ Step 4 — spawn_agent: agent-factory
   Loop directory: loop-stack/<LOOP_ID>/
   Read PLAN.md (goal + tasks), RESEARCH.md, and TOOLS.md.
   Analyze the goal domain. Determine what specialized agents would improve execution quality.
-  Create 1–3 purpose-built agent TOML files in .codex/agents/ for this goal.
+  Create 1–3 purpose-built agent TOML files in loop-stack/<LOOP_ID>/agents/ for this goal.
   Write loop-stack/<LOOP_ID>/AGENTS.md listing each created agent and which tasks it handles.
   If generic agents sufficient, write AGENTS.md with "NONE CREATED".
   Read .codex/agents/agent-factory.toml for full instructions.
@@ -227,6 +235,7 @@ d. Read AGENTS.md — if specialized agents were created for any tasks in this b
      Current task: {this_task}. Scope: only files for this task.
      Implement. Append discoveries to MEMORY.md directly.
      Update STATUS.md. Call report_agent_job_result when done.
+     Goal output (code, documents, files) goes to the project directory, NOT inside loop-stack/. loop-stack/ is state-only.
    Wait for all. Increment turns_used.
 
 e. Spawn memory-keeper checkpoint for each task in parallel (local only):

@@ -91,6 +91,8 @@ Create `loop-stack/<LOOP_ID>/` with:
     ## Status
     PENDING (agent-factory will populate after planning)
 
+Create `loop-stack/<LOOP_ID>/agents/` directory (agent-factory will write specialist agents here).
+
 Create `loop-stack/.global/MEMORY.md` if missing.
 
 ---
@@ -102,6 +104,7 @@ Create `loop-stack/.global/MEMORY.md` if missing.
 **Bash (macOS/Linux):**
 ```bash
 mkdir -p .cursor/agents
+mkdir -p .cursor/agents/knowledge-sources
 cp ~/.cursor/skills/loop-engineer/agents/resource-scout.md .cursor/agents/
 cp ~/.cursor/skills/loop-engineer/agents/researcher.md .cursor/agents/
 cp ~/.cursor/skills/loop-engineer/agents/planner.md .cursor/agents/
@@ -110,12 +113,15 @@ cp ~/.cursor/skills/loop-engineer/agents/executor.md .cursor/agents/
 cp ~/.cursor/skills/loop-engineer/agents/evaluator.md .cursor/agents/
 cp ~/.cursor/skills/loop-engineer/agents/auditor.md .cursor/agents/
 cp ~/.cursor/skills/loop-engineer/agents/memory-keeper.md .cursor/agents/
+cp ~/.cursor/skills/loop-engineer/agents/knowledge-sources/*.md .cursor/agents/knowledge-sources/
 ```
 
 **PowerShell (Windows):**
 ```powershell
 New-Item -ItemType Directory -Force .cursor\agents | Out-Null
+New-Item -ItemType Directory -Force ".cursor\agents\knowledge-sources" | Out-Null
 Copy-Item "$env:USERPROFILE\.cursor\skills\loop-engineer\agents\*.md" ".cursor\agents\"
+Copy-Item "$env:USERPROFILE\.cursor\skills\loop-engineer\agents\knowledge-sources\*.md" ".cursor\agents\knowledge-sources\"
 ```
 
 Then write only `verifier.md` with actual STOP_CONDITION substituted:
@@ -196,7 +202,7 @@ Follow .cursor/agents/planner.md.
 Loop directory: loop-stack/<LOOP_ID>/
 Read loop-stack/<LOOP_ID>/PLAN.md (goal + tasks), RESEARCH.md, and TOOLS.md.
 Analyze the goal domain and determine what specialized agents would improve execution quality.
-Create 1–3 purpose-built agent files in .cursor/agents/ tailored to this goal's domain and tasks.
+Create 1–3 purpose-built agent files in loop-stack/<LOOP_ID>/agents/ tailored to this goal's domain and tasks.
 Write loop-stack/<LOOP_ID>/AGENTS.md listing each created agent and which tasks it handles.
 If the generic agents are sufficient, write AGENTS.md with "NONE CREATED" and skip creating files.
 Follow .cursor/agents/agent-factory.md.
@@ -230,6 +236,7 @@ Read MEMORY.md, TOOLS.md, PLAN.md, STATUS.md.
 READ: RESEARCH.md section "## Task-Specific Research — {this_task}".
 Current task: {this_task}. Scope: only files for this task.
 Implement. Append discoveries directly to MEMORY.md. Update STATUS.md.
+Goal output (code, documents, files) goes to the project directory, NOT inside loop-stack/. loop-stack/ is state-only.
 Follow .cursor/agents/executor.md.
 ```
 Wait for all. Increment turns_used.

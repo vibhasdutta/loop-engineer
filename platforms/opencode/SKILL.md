@@ -62,6 +62,8 @@ Create `loop-stack/.global/MEMORY.md` if missing.
     ## Status
     PENDING (agent-factory will populate after planning)
 
+Create `loop-stack/<LOOP_ID>/agents/` directory (agent-factory will write specialist agents here).
+
 **STATUS.md:**
 
     # Loop Status
@@ -96,12 +98,15 @@ Create `loop-stack/.global/MEMORY.md` if missing.
 
 ```bash
 mkdir -p .opencode/agents
+mkdir -p .opencode/agents/knowledge-sources
 cp ~/.config/opencode/skills/loop-engineer/agents/*.md .opencode/agents/
+cp ~/.config/opencode/skills/loop-engineer/agents/knowledge-sources/*.md .opencode/agents/knowledge-sources/
 ```
 
 If skill is installed via Claude-compatible path:
 ```bash
 cp ~/.claude/skills/loop-engineer/agents/*.md .opencode/agents/
+cp ~/.claude/skills/loop-engineer/agents/knowledge-sources/*.md .opencode/agents/knowledge-sources/
 ```
 
 Then write only `verifier.md` with actual STOP_CONDITION substituted (never write the literal placeholder):
@@ -193,7 +198,7 @@ prompt: |
   Loop directory: loop-stack/<LOOP_ID>/
   Read loop-stack/<LOOP_ID>/PLAN.md (goal + tasks), RESEARCH.md, and TOOLS.md.
   Analyze the goal domain. Determine what specialized agents would improve execution quality.
-  Create 1–3 purpose-built agent files in .opencode/agents/ tailored to this goal's domain.
+  Create 1–3 purpose-built agent files in loop-stack/<LOOP_ID>/agents/ tailored to this goal's domain.
   Write loop-stack/<LOOP_ID>/AGENTS.md listing each created agent and which tasks it handles.
   If generic agents are sufficient, write AGENTS.md with "NONE CREATED".
 ```
@@ -239,6 +244,7 @@ All agents are invoked via the `task` tool, one at a time, waiting for each to c
      READ: RESEARCH.md "## Task-Specific Research — {this_task}".
      Current task: {this_task}. Scope: only files for this task.
      Implement. Append discoveries to MEMORY.md. Update STATUS.md.
+     Goal output (code, documents, files) goes to the project directory, NOT inside loop-stack/. loop-stack/ is state-only.
    ```
    Increment turns_used.
 

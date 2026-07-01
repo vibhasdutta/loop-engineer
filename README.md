@@ -31,7 +31,7 @@ Works for any objective: software development, research papers, data analysis, c
 - **Domain-agnostic by design** — no hardcoded task types or procedures. Agents derive their behavior from the goal. The same framework that builds a web service can write a research report or configure a data pipeline.
 - **Self-assembling agent team** — after planning, an `agent-factory` creates 1–3 specialized agents tuned to the specific goal domain and writes an `AGENTS.md` manifest. Executors check this and use specialists when available. If generic agents are sufficient, factory creates nothing.
 - **Resource scout runs before everything** — discovers MCPs, skills, local tools, APIs, and datasets relevant to the goal. Writes a usage guide with exact callable names and invocation syntax so executors never have to guess.
-- **Researcher runs before every executor pass** — the executor never acts blind. It gets prior work analysis, domain knowledge, identified constraints, and a suggested approach before touching anything.
+- **Researcher runs before every executor pass** — the executor never acts blind. The researcher consults a 33-category knowledge-sources directory to find the right research channels for the goal domain, then prioritizes finding existing tools, MCPs, libraries, and APIs before planning how to build. Writes structured findings for three audiences: executor (how to do it), evaluator (verification criteria), and auditor (quality standards).
 - **Memory accumulates across tasks and loops** — each completed task distills learnings into `MEMORY.md`. The `.global/MEMORY.md` persists across all loops in the project so the agent gets smarter over time.
 - **Fully autonomous failure handling** — 3 verifier failures → auto-skip; auditor BLOCK → auto-fix once then skip. Never pauses for user input.
 
@@ -196,13 +196,13 @@ Phase 6  Report
 | Agent | What it does |
 |---|---|
 | **resource-scout** | Discovers everything available for the goal — MCP servers, skills, local tools, APIs, datasets, external resources. Writes `TOOLS.md` with a usage guide of exact callable names and invocation syntax. Propagates newly discovered resources live during execution. Cached globally for 7 days. |
-| **researcher** | Maps what's known, what's needed, and what could go wrong before the executor acts. Reads global memory and tools, analyzes context, identifies constraints and risks, and writes `RESEARCH.md` before every executor pass. Dynamic count (2–4) based on goal complexity, each assigned a universal domain: context & prior work, external knowledge & resources, requirements & constraints, environment & integration. |
+| **researcher** | Maps what's known, what's needed, and what could go wrong before the executor acts. Consults `knowledge-sources.md` to identify the right research channels for the goal domain (33 categories: search engines, package registries, GitHub, APIs, security databases, finance, medical, etc.), then searches across those sources — prioritizing existing MCPs, skills, libraries, and APIs before building from scratch. Writes `RESEARCH.md` for three audiences: the executor (how to do it), the evaluator (what to verify), and the auditor (what right looks like). Dynamic count (2–4) based on goal complexity. Runs before every executor pass. |
 | **planner** | Reads all researcher output and resource discoveries. Creates atomic tasks tagged with parallel group markers: same `[GN]` = run in parallel, different `[GN]` = sequential dependency. Runs once at startup. |
-| **agent-factory** | Runs after planning. Reads `PLAN.md` and `TOOLS.md`, determines whether the goal needs domain specialists, and creates 1–3 purpose-built agents when beneficial. Writes `AGENTS.md` so executors know which specialists exist and when to use them. If generic agents are sufficient, creates nothing. |
-| **executor** | Reads `RESEARCH.md` and checks `AGENTS.md` for specialists before acting. Derives execution method from the goal — writes code, produces documents, processes data, runs pipelines, or whatever the task requires. Implements one task. Appends discoveries to `MEMORY.md` inline. Never marks tasks complete. |
-| **evaluator** | Verifies output quality using methods appropriate to the goal type — running tests, checking document structure, validating data, reviewing output against requirements. Checks at least one edge case flagged in `RESEARCH.md`. Reports pass/fail with detail. Never executes the goal itself. |
+| **agent-factory** | Runs after planning. Reads `PLAN.md` and `TOOLS.md`, determines whether the goal needs domain specialists, and creates 1–3 purpose-built agents when beneficial. Writes specialists to `loop-stack/<LOOP_ID>/agents/` (loop-specific, not platform-global). Writes `AGENTS.md` manifest so executors know which specialists exist and when to use them. Creates nothing if generic agents are sufficient. |
+| **executor** | Reads `RESEARCH.md`, checks `AGENTS.md` for loop-specific specialists (from `loop-stack/<LOOP_ID>/agents/`), then derives execution method from the goal — writes code, produces documents, processes data, runs pipelines, or whatever the task requires. Implements one task. Appends discoveries to `MEMORY.md` inline. Goal output always goes to the project directory, never inside `loop-stack/`. Never marks tasks complete. |
+| **evaluator** | Reads `RESEARCH.md § Verification Criteria` first — the researcher already defined what passing looks like for this specific task. Then confirms output exists in the right place (project directory, not `loop-stack/`), satisfies those criteria, and is complete with no placeholders. Reports pass/fail with specifics. Never executes the goal itself. |
 | **verifier** | Dynamically written per loop with the actual stop condition. Runs it, marks `[x]` in `PLAN.md` on pass, writes error on fail. Hard rule: never marks done unless verification actually passed. |
-| **auditor** | Reviews output for goal alignment, quality, accuracy, and constraint violations. Three outcomes: CLEAN (proceed), WARN (non-blocking), BLOCK (triggers one auto-fix attempt). |
+| **auditor** | Reads `RESEARCH.md § Quality Standards` first — the researcher already documented what good output looks like vs. what to avoid for this task. Catches problems the evaluator wouldn't: things that technically work but aren't done the right way. Three outcomes: CLEAN (proceed), WARN (non-blocking), BLOCK (triggers one auto-fix attempt). |
 | **memory-keeper** | Distills new learnings into loop `MEMORY.md` and the shared `loop-stack/.global/MEMORY.md`. Runs twice per task batch: checkpoint after executors, full consolidation after auditors. |
 
 ---
@@ -216,9 +216,11 @@ loop-stack/
     STATUS.md             ← current state, attempt count, last result per agent
     MEMORY.md             ← learnings accumulated this loop
     TOOLS.md              ← resources, tools, APIs, usage guide
-    RESEARCH.md           ← researcher findings per task
-    AGENTS.md             ← specialized agents created by agent-factory
+    RESEARCH.md           ← 7 sections: context, tools, requirements, approach,
+                             verification criteria, quality standards, prior attempts
+    AGENTS.md             ← specialized agents manifest created by agent-factory
     REPORT.md             ← written on completion
+    agents/               ← loop-specific domain specialists (written by agent-factory)
   <loop-id>_DONE/         ← renamed when complete; skipped by resume check
   .global/
     MEMORY.md             ← cross-loop project learnings (shared, persistent)
@@ -239,6 +241,9 @@ loop-stack/
 | Antigravity 2.0 | `AGENTS.md` | `.agents/` | `~/.gemini/config/skills/` | `~/.gemini/config/mcp_config.json` |
 | OpenCode | `AGENTS.md` | `.opencode/agents/` | `~/.config/opencode/skills/` | `opencode.json` → `mcp` key |
 | Hermes Agent | `HERMES.md` / `.hermes.md` | `.hermes/agents/` | `~/.hermes/skills/` | `~/.hermes/config.yaml` → `mcp_servers` |
+| OpenAI Codex CLI | — | `.codex/agents/` (TOML) | `~/.codex/skills/` | `~/.codex/config.yaml` |
+
+> **Codex note:** knowledge-sources live at `.codex/knowledge-sources/` (sibling of agents/, not inside it) — Codex's agents/ directory holds only TOML agent definitions.
 
 Copy the platform's context file to your project root after installing — it tells the agent where the skill lives, how subagents work, and what slash commands are available.
 
