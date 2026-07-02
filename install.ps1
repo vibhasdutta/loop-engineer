@@ -1,4 +1,4 @@
-# Loop Engineer — Windows installer
+# Loop Engineer - Windows installer
 # Usage:
 #   .\install.ps1              -> Claude Code (default)
 #   .\install.ps1 -Cursor      -> Cursor

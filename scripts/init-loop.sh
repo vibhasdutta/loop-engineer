@@ -82,7 +82,11 @@ GLOBAL_DIR="loop-stack/.global"
 mkdir -p "$LOOP_DIR/agents"
 mkdir -p "$GLOBAL_DIR"
 mkdir -p "$AGENTS_DIR"
-[[ "$PLATFORM" == "codex" ]] && mkdir -p "$KNOWLEDGE_DIR" || mkdir -p "$AGENTS_DIR/knowledge-sources"
+if [[ "$PLATFORM" == "codex" ]]; then
+  mkdir -p "$KNOWLEDGE_DIR"
+else
+  mkdir -p "$AGENTS_DIR/knowledge-sources"
+fi
 
 # ── State files ───────────────────────────────────────────────────────────────
 

@@ -1,4 +1,4 @@
-# init-loop.ps1 — initializes a new loop-engineer loop in one command
+# init-loop.ps1 - initializes a new loop-engineer loop in one command
 # Usage:
 #   .\init-loop.ps1 -LoopId ID -Goal GOAL -Stop STOP_CONDITION [-Git yes/no] [-Platform PLATFORM]
 #
@@ -173,7 +173,7 @@ if ($SkillDir -and (Test-Path $SkillDir)) {
     try { Copy-Item "$SkillDir\agents\knowledge-sources\*.md" "$AgentsDir\knowledge-sources\" -ErrorAction SilentlyContinue } catch {}
   }
 } else {
-  Write-Warning "Skill dir not found for platform '$Platform' — agent files not copied. Run install.ps1 first."
+  Write-Warning "Skill dir not found for platform '$Platform' - agent files not copied. Run install.ps1 first."
 }
 
 # ── Write verifier with actual STOP_CONDITION ─────────────────────────────────
@@ -189,8 +189,8 @@ You are the verifier agent.
 1. Read loop-stack/.global/MEMORY.md FIRST.
 2. Read [LOOP_DIR]/MEMORY.md, STATUS.md, PLAN.md.
 3. Run: $Stop
-4. PASSES → set State VERIFIED_PASS, mark task [x] in PLAN.md, update Task Progress. If all done: ALL DONE.
-5. FAILS → set State FAILED, write exact error to Last Executor Result.
+4. PASSES ->set State VERIFIED_PASS, mark task [x] in PLAN.md, update Task Progress. If all done: ALL DONE.
+5. FAILS ->set State FAILED, write exact error to Last Executor Result.
 HARD RULE: Never execute the goal or write output files for the goal.
 HARD RULE: Never mark done unless verification actually passed.
 "@ | Set-Content "$AgentsDir\verifier.md" -Encoding utf8
@@ -207,8 +207,8 @@ temperature: 0.1
 1. Read loop-stack/.global/MEMORY.md FIRST.
 2. Read [LOOP_DIR]/MEMORY.md, STATUS.md, PLAN.md.
 3. Run: $Stop
-4. PASSES → State VERIFIED_PASS, mark [x], update Task Progress. All done → ALL DONE.
-5. FAILS → State FAILED, write exact error to Last Executor Result.
+4. PASSES ->State VERIFIED_PASS, mark [x], update Task Progress. All done ->ALL DONE.
+5. FAILS ->State FAILED, write exact error to Last Executor Result.
 HARD RULE: Never write application code. Never mark done unless verification passed.
 "@ | Set-Content "$AgentsDir\verifier.md" -Encoding utf8
   }
@@ -220,8 +220,8 @@ You are the verifier agent. Never write application code.
 1. Read loop-stack/.global/MEMORY.md FIRST.
 2. Read [LOOP_DIR]/MEMORY.md, STATUS.md, PLAN.md.
 3. Run: $Stop
-4. PASSES → State VERIFIED_PASS, mark [x], update Task Progress. All done → ALL DONE.
-5. FAILS → State FAILED, write exact error to Last Executor Result.
+4. PASSES ->State VERIFIED_PASS, mark [x], update Task Progress. All done ->ALL DONE.
+5. FAILS ->State FAILED, write exact error to Last Executor Result.
 HARD RULE: Never write application code. Never mark done unless verification passed.
 "@ | Set-Content "$AgentsDir\verifier.md" -Encoding utf8
   }
@@ -241,8 +241,8 @@ permission:
 1. Read loop-stack/.global/MEMORY.md FIRST.
 2. Read [LOOP_DIR]/MEMORY.md, STATUS.md, PLAN.md.
 3. Run: $Stop
-4. PASSES → set State VERIFIED_PASS, mark [x] in PLAN.md, update Task Progress. If all done: ALL DONE.
-5. FAILS → set State FAILED, write exact error to Last Executor Result.
+4. PASSES ->set State VERIFIED_PASS, mark [x] in PLAN.md, update Task Progress. If all done: ALL DONE.
+5. FAILS ->set State FAILED, write exact error to Last Executor Result.
 HARD RULE: Never write application code. Never mark done unless verification actually passed.
 "@ | Set-Content "$AgentsDir\verifier.md" -Encoding utf8
   }
@@ -268,6 +268,6 @@ Call report_agent_job_result when done.
 
 # ── Done ──────────────────────────────────────────────────────────────────────
 
-Write-Host "✓ loop-stack/$LoopId/ created (PLAN.md · STATUS.md · MEMORY.md · TOOLS.md · RESEARCH.md · AGENTS.md · agents/)"
-Write-Host "✓ $AgentsDir/ ready"
-Write-Host "✓ loop-stack/.global/ initialized"
+Write-Host "[OK] loop-stack/$LoopId/ created (PLAN.md - STATUS.md - MEMORY.md - TOOLS.md - RESEARCH.md - AGENTS.md - agents/)"
+Write-Host "[OK] $AgentsDir/ ready"
+Write-Host "[OK] loop-stack/.global/ initialized"
