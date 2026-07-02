@@ -8,7 +8,9 @@
 #   .\install.ps1 -OpenCode    -> OpenCode
 #   .\install.ps1 -Hermes      -> Hermes Agent
 #   .\install.ps1 -All         -> all platforms
-# Also accepts bash-style flags: --cursor, --gemini, --codex, --opencode, --hermes, --all
+#   .\install.ps1 -Update      -> git pull + re-install Claude Code
+#   .\install.ps1 -Update -Cursor -> git pull + re-install Cursor
+# Also accepts bash-style flags: --cursor, --gemini, --codex, --opencode, --hermes, --all, --update
 
 param(
     [switch]$Cursor,
@@ -18,6 +20,7 @@ param(
     [switch]$OpenCode,
     [switch]$Hermes,
     [switch]$All,
+    [switch]$Update,
     [Parameter(ValueFromRemainingArguments)][string[]]$ExtraArgs
 )
 
@@ -31,16 +34,41 @@ foreach ($arg in $ExtraArgs) {
         'opencode'    { $OpenCode = $true }
         'hermes'      { $Hermes = $true }
         'all'         { $All = $true }
+        'update'      { $Update = $true }
     }
 }
 
 $RepoDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+
+if ($Update) {
+    $gitDir = Join-Path $RepoDir ".git"
+    if (Test-Path $gitDir) {
+        Write-Host "Pulling latest changes..."
+        git -C $RepoDir pull
+    }
+}
+
+function Copy-Scripts($dir) {
+    New-Item -ItemType Directory -Force "$dir\scripts" | Out-Null
+    try { Copy-Item "$RepoDir\scripts\init-loop.sh"  "$dir\scripts\" -Force -ErrorAction SilentlyContinue } catch {}
+    try { Copy-Item "$RepoDir\scripts\init-loop.ps1" "$dir\scripts\" -Force -ErrorAction SilentlyContinue } catch {}
+}
+
+function Copy-KnowledgeSources($platformAgentsDir, $destAgentsDir) {
+    $ks = "$platformAgentsDir\knowledge-sources"
+    if (Test-Path $ks) {
+        New-Item -ItemType Directory -Force "$destAgentsDir\knowledge-sources" | Out-Null
+        Copy-Item "$ks\*.md" "$destAgentsDir\knowledge-sources\" -Force -ErrorAction SilentlyContinue
+    }
+}
 
 function Install-Claude {
     $dir = "$env:USERPROFILE\.claude\skills\loop-engineer"
     New-Item -ItemType Directory -Force "$dir\agents" | Out-Null
     Copy-Item "$RepoDir\platforms\claude\SKILL.md" "$dir\SKILL.md" -Force
     Copy-Item "$RepoDir\platforms\claude\agents\*.md" "$dir\agents\" -Force
+    Copy-KnowledgeSources "$RepoDir\platforms\claude\agents" "$dir\agents"
+    Copy-Scripts $dir
     Write-Host "Claude Code: installed to $dir"
     Write-Host "Restart Claude Code, then use /loop-engineer in any project."
 }
@@ -50,6 +78,8 @@ function Install-Cursor {
     New-Item -ItemType Directory -Force "$dir\agents" | Out-Null
     Copy-Item "$RepoDir\platforms\cursor\SKILL.md" "$dir\SKILL.md" -Force
     Copy-Item "$RepoDir\platforms\cursor\agents\*.md" "$dir\agents\" -Force
+    Copy-KnowledgeSources "$RepoDir\platforms\cursor\agents" "$dir\agents"
+    Copy-Scripts $dir
     Write-Host "Cursor: installed to $dir"
     Write-Host "Restart Cursor, then use /loop-engineer in any project."
 }
@@ -61,6 +91,8 @@ function Install-Gemini {
     Copy-Item "$RepoDir\platforms\gemini\GEMINI.md" "$dir\GEMINI.md" -Force
     Copy-Item "$RepoDir\platforms\gemini\gemini-extension.json" "$dir\gemini-extension.json" -Force
     Copy-Item "$RepoDir\platforms\gemini\agents\*.md" "$dir\agents\" -Force
+    Copy-KnowledgeSources "$RepoDir\platforms\gemini\agents" "$dir\agents"
+    Copy-Scripts $dir
     $cmdSrc = "$RepoDir\platforms\gemini\commands"
     if (Test-Path $cmdSrc) {
         New-Item -ItemType Directory -Force "$env:USERPROFILE\.gemini\commands" | Out-Null
@@ -70,44 +102,39 @@ function Install-Gemini {
     Write-Host "Restart Gemini CLI or run '/skills reload' inside a session to activate."
 }
 
+function Install-AntigravitySurface($dest) {
+    New-Item -ItemType Directory -Force "$dest\agents" | Out-Null
+    Copy-Item "$RepoDir\platforms\antigravity\SKILL.md" "$dest\SKILL.md" -Force
+    Copy-Item "$RepoDir\platforms\antigravity\AGENTS.md" "$dest\AGENTS.md" -Force
+    Copy-Item "$RepoDir\platforms\antigravity\agents\*.md" "$dest\agents\" -Force
+    Copy-KnowledgeSources "$RepoDir\platforms\antigravity\agents" "$dest\agents"
+    Copy-Scripts $dest
+}
+
 function Install-Antigravity {
-    # CLI (agy): ~/.gemini/antigravity-cli/skills/
     $cliDir = "$env:USERPROFILE\.gemini\antigravity-cli\skills\loop-engineer"
-    New-Item -ItemType Directory -Force "$cliDir\agents" | Out-Null
-    Copy-Item "$RepoDir\platforms\antigravity\SKILL.md" "$cliDir\SKILL.md" -Force
-    Copy-Item "$RepoDir\platforms\antigravity\AGENTS.md" "$cliDir\AGENTS.md" -Force
-    Copy-Item "$RepoDir\platforms\antigravity\agents\*.md" "$cliDir\agents\" -Force
+    Install-AntigravitySurface $cliDir
     Write-Host "Antigravity CLI (agy): installed to $cliDir"
 
-    # IDE (VS Code / JetBrains extension): ~/.gemini/antigravity/skills/
     $ideDir = "$env:USERPROFILE\.gemini\antigravity\skills\loop-engineer"
-    New-Item -ItemType Directory -Force "$ideDir\agents" | Out-Null
-    Copy-Item "$RepoDir\platforms\antigravity\SKILL.md" "$ideDir\SKILL.md" -Force
-    Copy-Item "$RepoDir\platforms\antigravity\AGENTS.md" "$ideDir\AGENTS.md" -Force
-    Copy-Item "$RepoDir\platforms\antigravity\agents\*.md" "$ideDir\agents\" -Force
+    Install-AntigravitySurface $ideDir
     Write-Host "Antigravity IDE: installed to $ideDir"
 
-    # 2.0 desktop: ~/.gemini/config/skills/
     $appDir = "$env:USERPROFILE\.gemini\config\skills\loop-engineer"
-    New-Item -ItemType Directory -Force "$appDir\agents" | Out-Null
-    Copy-Item "$RepoDir\platforms\antigravity\SKILL.md" "$appDir\SKILL.md" -Force
-    Copy-Item "$RepoDir\platforms\antigravity\AGENTS.md" "$appDir\AGENTS.md" -Force
-    Copy-Item "$RepoDir\platforms\antigravity\agents\*.md" "$appDir\agents\" -Force
+    Install-AntigravitySurface $appDir
     Write-Host "Antigravity 2.0 desktop: installed to $appDir"
 
     Write-Host "Copy platforms\antigravity\AGENTS.md to your project root for workspace context."
 }
 
 function Install-OpenCode {
-    $dir = "$env:LOCALAPPDATA\opencode\skills\loop-engineer"
-    # OpenCode on Windows uses %LOCALAPPDATA%/opencode or ~/.config/opencode
-    $configDir = "$env:USERPROFILE\.config\opencode\skills\loop-engineer"
-    # Try both locations; prefer ~/.config/opencode (cross-platform convention)
-    $dir = $configDir
+    $dir = "$env:USERPROFILE\.config\opencode\skills\loop-engineer"
     New-Item -ItemType Directory -Force "$dir\agents" | Out-Null
     Copy-Item "$RepoDir\platforms\opencode\SKILL.md" "$dir\SKILL.md" -Force
     Copy-Item "$RepoDir\platforms\opencode\AGENTS.md" "$dir\AGENTS.md" -Force
     Copy-Item "$RepoDir\platforms\opencode\agents\*.md" "$dir\agents\" -Force
+    Copy-KnowledgeSources "$RepoDir\platforms\opencode\agents" "$dir\agents"
+    Copy-Scripts $dir
     $cmdSrc = "$RepoDir\platforms\opencode\commands"
     if (Test-Path $cmdSrc) {
         New-Item -ItemType Directory -Force "$env:USERPROFILE\.config\opencode\commands" | Out-Null
@@ -120,8 +147,12 @@ function Install-OpenCode {
 function Install-Codex {
     $dir = "$env:USERPROFILE\.codex\skills\loop-engineer"
     New-Item -ItemType Directory -Force "$dir\agents" | Out-Null
+    New-Item -ItemType Directory -Force "$dir\knowledge-sources" | Out-Null
     Copy-Item "$RepoDir\platforms\codex\SKILL.md" "$dir\SKILL.md" -Force
     Copy-Item "$RepoDir\platforms\codex\agents\*.toml" "$dir\agents\" -Force
+    Copy-Item "$RepoDir\platforms\codex\knowledge-sources\*.md" "$dir\knowledge-sources\" -Force -ErrorAction SilentlyContinue
+    Copy-Item "$RepoDir\platforms\codex\knowledge-sources.md" "$dir\knowledge-sources.md" -Force -ErrorAction SilentlyContinue
+    Copy-Scripts $dir
     Write-Host "Codex CLI: installed to $dir"
     Write-Host "Use /loop-engineer in any Codex session."
 }
@@ -132,6 +163,8 @@ function Install-Hermes {
     Copy-Item "$RepoDir\platforms\hermes\SKILL.md" "$dir\SKILL.md" -Force
     Copy-Item "$RepoDir\platforms\hermes\HERMES.md" "$dir\HERMES.md" -Force
     Copy-Item "$RepoDir\platforms\hermes\agents\*.md" "$dir\agents\" -Force
+    Copy-KnowledgeSources "$RepoDir\platforms\hermes\agents" "$dir\agents"
+    Copy-Scripts $dir
     Write-Host "Hermes Agent: installed to $dir"
     Write-Host "Copy platforms\hermes\HERMES.md to your project root for workspace context."
     Write-Host "Use /loop-engineer in any Hermes session."
@@ -158,4 +191,8 @@ if ($All) {
     Install-Hermes
 } else {
     Install-Claude
+}
+
+if ($Update) {
+    Write-Host "loop-engineer updated to latest"
 }

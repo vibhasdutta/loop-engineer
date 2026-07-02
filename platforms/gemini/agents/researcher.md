@@ -19,8 +19,12 @@ Before any executor touches a task, you map what's known, what's needed, what's 
 - `[LOOP_DIR]/STATUS.md` — the current task and any past failure context
 Note: LOOP_DIR is provided in your spawning prompt.
 
+**Heartbeat:** Write a one-line status to `[LOOP_DIR]/STATUS.md` under `## Active Heartbeats` when you start and after each major step: `researcher: [what you're doing right now]`. This lets the watcher detect if you've hung.
+
 **Selecting research sources:**
-Consult `knowledge-sources.md` (in the same agents/ directory as this file). Read the goal and current task, identify the 2–5 most relevant categories, and prioritize sources from those sections. For most goals start with: Search Engines, Open Source Code, Official Documentation, Package Managers, APIs, and MCP Servers. Add domain-specific categories (Security, Finance, Medical, etc.) when the goal requires them.
+First check if the current task is fully answerable from existing loop files (TOOLS.md, MEMORY.md, PLAN.md context already in hand). If yes — skip knowledge-sources entirely and go straight to research.
+
+Only open `knowledge-sources.md` (same agents/ directory) when the task genuinely needs external sources: unknown domain, unfamiliar ecosystem, or unclear where to look. When you do consult it: identify the 2–5 most relevant categories for the goal domain, read only those files. Skip categories that clearly don't apply.
 
 **How to research — priority order:**
 

@@ -24,6 +24,8 @@ Scan for `loop-stack/*/STATUS.md`. **Skip any directory ending with `_DONE`.**
 - Fresh → delete `loop-stack/<loop-id>/` only (keep `.cursor/agents/`), continue to Phase 1.
 **Multiple found:** list all, ask which to resume or type 'fresh'.
 
+> **To update loop-engineer:** re-run `install.sh --update` / `install.ps1 -Update -Cursor` (manual install). Updates are never applied automatically mid-loop.
+
 ---
 
 ## Phase 1 — Core Wizard
@@ -37,111 +39,40 @@ Auto-set: `STOP_CONDITION` = "all tasks in loop-stack/<LOOP_ID>/PLAN.md checked"
 
 ---
 
-## Phase 2 — State File Creation
+## Phase 2+3 — Initialize Loop
 
-Create `loop-stack/<LOOP_ID>/` with:
-
-**PLAN.md** (task stub — planner fills in Phase 4):
-
-    # Loop Plan
-    ## Goal
-    {GOAL}
-    ## Stop Condition
-    {STOP_CONDITION}
-    ## Budget
-    20 turns
-    ## Git Integration
-    {yes / no}
-    ## Tasks
-    (will be created by the planner agent)
-
-**STATUS.md:**
-
-    # Loop Status
-    ## State
-    IN_PROGRESS
-    ## Current Task
-    (planning in progress)
-    ## Task Progress
-    0 / ? complete
-    ## Attempts On Current Task
-    0
-    ## Completed Tasks
-    (none)
-    ## Skipped Tasks
-    (none)
-    ## Last Researcher Result
-    (none)
-    ## Last Executor Result
-    (none)
-    ## Last Evaluator Result
-    (none)
-    ## Last Audit Result
-    (none)
-    ## Blocked Reason
-    (none)
-
-**MEMORY.md:** `# Loop Memory\nUpdated continuously by all agents.\n## Learnings\n(none yet)`
-**TOOLS.md:** `# Discovered Tools\n## Status\nPENDING`
-**RESEARCH.md:** `# Research Log\n## Context & Prior Work\n(pending)\n## External Knowledge & Resources\n(pending)\n## Task-Specific Research\n(pending)`
-
-**loop-stack/<LOOP_ID>/AGENTS.md:**
-
-    # Specialized Agents
-    ## Status
-    PENDING (agent-factory will populate after planning)
-
-Create `loop-stack/<LOOP_ID>/agents/` directory (agent-factory will write specialist agents here).
-
-Create `loop-stack/.global/MEMORY.md` if missing.
-
----
-
-## Phase 3 — Agent File Setup
-
-**CRITICAL: Use shell commands — do NOT write agent files manually.**
+Run the init script — creates all state files, copies agent files, and writes verifier in one command:
 
 **Bash (macOS/Linux):**
 ```bash
-mkdir -p .cursor/agents
-mkdir -p .cursor/agents/knowledge-sources
-cp ~/.cursor/skills/loop-engineer/agents/resource-scout.md .cursor/agents/
-cp ~/.cursor/skills/loop-engineer/agents/researcher.md .cursor/agents/
-cp ~/.cursor/skills/loop-engineer/agents/planner.md .cursor/agents/
-cp ~/.cursor/skills/loop-engineer/agents/agent-factory.md .cursor/agents/
-cp ~/.cursor/skills/loop-engineer/agents/executor.md .cursor/agents/
-cp ~/.cursor/skills/loop-engineer/agents/evaluator.md .cursor/agents/
-cp ~/.cursor/skills/loop-engineer/agents/auditor.md .cursor/agents/
-cp ~/.cursor/skills/loop-engineer/agents/memory-keeper.md .cursor/agents/
-cp ~/.cursor/skills/loop-engineer/agents/knowledge-sources/*.md .cursor/agents/knowledge-sources/
+bash ~/.cursor/skills/loop-engineer/scripts/init-loop.sh \
+  --loop-id <LOOP_ID> \
+  --goal "<GOAL>" \
+  --stop "all tasks in loop-stack/<LOOP_ID>/PLAN.md checked" \
+  --git <yes/no> \
+  --platform cursor
 ```
 
 **PowerShell (Windows):**
 ```powershell
-New-Item -ItemType Directory -Force .cursor\agents | Out-Null
-New-Item -ItemType Directory -Force ".cursor\agents\knowledge-sources" | Out-Null
-Copy-Item "$env:USERPROFILE\.cursor\skills\loop-engineer\agents\*.md" ".cursor\agents\"
-Copy-Item "$env:USERPROFILE\.cursor\skills\loop-engineer\agents\knowledge-sources\*.md" ".cursor\agents\knowledge-sources\"
+& "$env:USERPROFILE\.cursor\skills\loop-engineer\scripts\init-loop.ps1" `
+  -LoopId "<LOOP_ID>" `
+  -Goal "<GOAL>" `
+  -Stop "all tasks in loop-stack/<LOOP_ID>/PLAN.md checked" `
+  -Git <yes/no> `
+  -Platform cursor
 ```
 
-Then write only `verifier.md` with actual STOP_CONDITION substituted:
+If the script is missing, install the skill first:
+`git clone https://github.com/vibhasdutta/loop-engineer && bash install.sh --cursor`
 
-    ---
-    name: verifier
-    description: Runs the stop condition. Marks tasks done or failed. Never writes application code.
-    ---
-    1. Read loop-stack/.global/MEMORY.md FIRST.
-    2. Read [LOOP_DIR]/MEMORY.md, STATUS.md, PLAN.md.
-    3. Run: {STOP_CONDITION}
-    4. PASSES → State VERIFIED_PASS, mark [x], update Task Progress. All done → ALL DONE.
-    5. FAILS → State FAILED, write exact error to Last Executor Result.
-    HARD RULE: Never write application code. Never mark done unless verification passed.
-
-Confirm: > ".cursor/agents/ ready · loop-stack/<LOOP_ID>/ created (PLAN.md, STATUS.md, MEMORY.md, TOOLS.md, RESEARCH.md, AGENTS.md) · agent-factory queued · Starting startup sequence..."
+The script creates `loop-stack/<LOOP_ID>/`, `.cursor/agents/` with all agent .md files + knowledge-sources/, and `verifier.md` with the actual stop condition substituted.
 
 ---
 
 ## Phase 4 — Startup Sequence
+
+**FULLY AUTONOMOUS from this point. Never pause or ask the user anything.**
 
 ### Step 1 — Parallel RESEARCHERS (dynamic count)
 
@@ -166,6 +97,16 @@ GLOBAL DATA FIRST: read loop-stack/.global/MEMORY.md and loop-stack/.global/TOOL
 Write findings to loop-stack/<LOOP_ID>/RESEARCH.md under "## {Domain Name}".
 Update STATUS.md "Last Researcher Result".
 Follow .cursor/agents/researcher.md.
+```
+
+**Also spawn the watcher simultaneously with researchers** (add one more Agent call in the same response):
+
+```
+Loop directory: loop-stack/<LOOP_ID>/
+Agents in this batch: [list the researcher agents you just spawned and their focus areas]
+Watch loop-stack/<LOOP_ID>/STATUS.md under "## Active Heartbeats" for updates from these agents.
+Report to loop-stack/<LOOP_ID>/STATUS.md under "## Last Watcher Report".
+Follow .cursor/agents/watcher.md.
 ```
 
 Wait for ALL to complete.
@@ -196,7 +137,12 @@ Replace "## Tasks" in PLAN.md. Update STATUS.md.
 Follow .cursor/agents/planner.md.
 ```
 
-### Step 4 — AGENT FACTORY
+### Step 4 — AGENT FACTORY (conditional)
+
+**Skip this step** if BOTH are true: planner created ≤ 2 tasks AND goal domain is generic (no clear need for specialists — e.g. simple script, config edit, single-file change).
+If skipping: write `loop-stack/<LOOP_ID>/AGENTS.md` with `# Specialized Agents\n## Status\nNONE CREATED` then go directly to Phase 5.
+
+**Run this step** if EITHER: planner created 3+ tasks, OR goal domain clearly benefits from specialists (security, ML/data science, content production, medical, finance, system design, etc.).
 
 ```
 Loop directory: loop-stack/<LOOP_ID>/

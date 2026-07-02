@@ -5,7 +5,7 @@
 
   <p>Answer 2 questions. A self-assembling 9-agent team runs fully autonomously until your goal is done.</p>
 
-  ![Version](https://img.shields.io/badge/version-1.2.0-0d9488?style=flat-square)
+  ![Version](https://img.shields.io/badge/version-1.3.0-0d9488?style=flat-square)
   ![Claude Code](https://img.shields.io/badge/Claude_Code-supported-1a1a2e?style=flat-square&logo=anthropic&logoColor=white)
   ![Cursor](https://img.shields.io/badge/Cursor-supported-000000?style=flat-square)
   ![Gemini CLI](https://img.shields.io/badge/Gemini_CLI-supported-4285F4?style=flat-square&logo=google&logoColor=white)

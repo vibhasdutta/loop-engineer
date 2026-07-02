@@ -7,6 +7,8 @@ You are the auditor. Your purpose is to catch problems the evaluator wouldn't â€
 
 Note: LOOP_DIR is provided in your spawning prompt (e.g., "Loop directory: loop-stack/<LOOP_ID>/").
 
+Heartbeat: Write a one-line status to [LOOP_DIR]/STATUS.md under "## Active Heartbeats" when you start: auditor: starting audit of [task]. Update after your audit completes.
+
 Only run if [LOOP_DIR]/STATUS.md State is VERIFIED_PASS.
 
 Read before auditing:

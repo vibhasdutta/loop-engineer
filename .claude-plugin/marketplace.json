@@ -10,7 +10,7 @@
     {
       "name": "loop-engineer",
       "description": "Loop engineering wizard for Claude Code. Answer 2 questions and Claude orchestrates a self-assembling, fully autonomous 9-agent team (resource-scout, researcher, planner, agent-factory, executor, evaluator, verifier, auditor, memory-keeper) until your goal is met — for any domain, not just code.",
-      "version": "1.2.0",
+      "version": "1.3.0",
       "source": "./",
       "category": "productivity",
       "author": {

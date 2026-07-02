@@ -24,6 +24,8 @@ Scan for `loop-stack/*/STATUS.md`. **Skip any directory ending with `_DONE`.**
 - Fresh → delete `loop-stack/<loop-id>/` only (keep `.opencode/agents/`), continue to Phase 1.
 **Multiple found:** list all, ask which to resume or type 'fresh'.
 
+> **To update loop-engineer:** re-run `install.sh --update` / `install.ps1 -Update -OpenCode`. Updates are never applied automatically mid-loop.
+
 ---
 
 ## Phase 1 — Core Wizard
@@ -37,102 +39,36 @@ Auto-set: `STOP_CONDITION` = "all tasks in loop-stack/<LOOP_ID>/PLAN.md checked"
 
 ---
 
-## Phase 2 — State File Creation
+## Phase 2+3 — Initialize Loop
 
-Create `loop-stack/<LOOP_ID>/` with PLAN.md (task stub), STATUS.md, MEMORY.md, TOOLS.md, RESEARCH.md, AGENTS.md.
-Create `loop-stack/.global/MEMORY.md` if missing.
+Run the init script — creates all state files, copies agent files, and writes verifier in one command:
 
-**PLAN.md:**
-
-    # Loop Plan
-    ## Goal
-    {GOAL}
-    ## Stop Condition
-    {STOP_CONDITION}
-    ## Budget
-    20 turns
-    ## Git Integration
-    {yes / no}
-    ## Tasks
-    (will be created by the planner agent)
-
-**loop-stack/<LOOP_ID>/AGENTS.md:**
-
-    # Specialized Agents
-    ## Status
-    PENDING (agent-factory will populate after planning)
-
-Create `loop-stack/<LOOP_ID>/agents/` directory (agent-factory will write specialist agents here).
-
-**STATUS.md:**
-
-    # Loop Status
-    ## State
-    IN_PROGRESS
-    ## Current Task
-    (planning in progress)
-    ## Task Progress
-    0 / ? complete
-    ## Attempts On Current Task
-    0
-    ## Completed Tasks
-    (none)
-    ## Skipped Tasks
-    (none)
-    ## Last Researcher Result
-    (none)
-    ## Last Executor Result
-    (none)
-    ## Last Evaluator Result
-    (none)
-    ## Last Audit Result
-    (none)
-    ## Blocked Reason
-    (none)
-
----
-
-## Phase 3 — Agent File Setup
-
-**CRITICAL: Use shell commands — do NOT write agent files manually.**
-
+**Bash (macOS/Linux):**
 ```bash
-mkdir -p .opencode/agents
-mkdir -p .opencode/agents/knowledge-sources
-cp ~/.config/opencode/skills/loop-engineer/agents/*.md .opencode/agents/
-cp ~/.config/opencode/skills/loop-engineer/agents/knowledge-sources/*.md .opencode/agents/knowledge-sources/
+# try opencode path first, fall back to claude path
+INIT="$HOME/.config/opencode/skills/loop-engineer/scripts/init-loop.sh"
+[ ! -f "$INIT" ] && INIT="$HOME/.claude/skills/loop-engineer/scripts/init-loop.sh"
+bash "$INIT" \
+  --loop-id <LOOP_ID> \
+  --goal "<GOAL>" \
+  --stop "all tasks in loop-stack/<LOOP_ID>/PLAN.md checked" \
+  --git <yes/no> \
+  --platform opencode
 ```
 
-If skill is installed via Claude-compatible path:
-```bash
-cp ~/.claude/skills/loop-engineer/agents/*.md .opencode/agents/
-cp ~/.claude/skills/loop-engineer/agents/knowledge-sources/*.md .opencode/agents/knowledge-sources/
+**PowerShell (Windows):**
+```powershell
+$init = "$env:USERPROFILE\.config\opencode\skills\loop-engineer\scripts\init-loop.ps1"
+if (-not (Test-Path $init)) { $init = "$env:USERPROFILE\.claude\skills\loop-engineer\scripts\init-loop.ps1" }
+& $init -LoopId "<LOOP_ID>" -Goal "<GOAL>" `
+  -Stop "all tasks in loop-stack/<LOOP_ID>/PLAN.md checked" `
+  -Git <yes/no> -Platform opencode
 ```
 
-Then write only `verifier.md` with actual STOP_CONDITION substituted (never write the literal placeholder):
+If the script is missing, install the skill first:
+`git clone https://github.com/vibhasdutta/loop-engineer && bash install.sh --opencode`
 
-    ---
-    name: verifier
-    description: Runs the stop condition. Marks tasks done or failed. Never writes application code.
-    mode: subagent
-    steps: 15
-    temperature: 0.1
-    permission:
-      edit: allow
-      write: allow
-      bash: allow
-    ---
-    1. Read loop-stack/.global/MEMORY.md FIRST.
-    2. Read [LOOP_DIR]/MEMORY.md, STATUS.md, PLAN.md.
-    3. Run: {STOP_CONDITION}
-    4. PASSES → set State VERIFIED_PASS, mark [x] in PLAN.md, update Task Progress. If all done: ALL DONE.
-    5. FAILS → set State FAILED, write exact error to Last Executor Result.
-    HARD RULE: Never write application code. Never mark done unless verification actually passed.
-
-Confirm to user:
-> "loop-stack/<LOOP_ID>/ created: PLAN.md · STATUS.md · MEMORY.md · TOOLS.md · RESEARCH.md
-> .opencode/agents/ ready: resource-scout · researcher · planner · agent-factory · executor · evaluator · verifier · auditor · memory-keeper
-> Starting startup sequence..."
+The script creates `loop-stack/<LOOP_ID>/`, `.opencode/agents/` with all agent .md files + knowledge-sources/, and `verifier.md` with the actual stop condition substituted.
 
 ---
 
@@ -164,6 +100,17 @@ prompt: |
   Update STATUS.md "Last Researcher Result".
 ```
 
+After all researchers complete, invoke the `watcher` agent using the `task` tool:
+```
+agent: watcher
+prompt: |
+  Loop directory: loop-stack/<LOOP_ID>/
+  Agents watched: researchers (just completed)
+  Check loop-stack/<LOOP_ID>/STATUS.md ## Active Heartbeats for signs of incomplete work.
+  If any researcher shows incomplete heartbeat, report STUCK in ## Last Watcher Report.
+```
+Wait for watcher to complete.
+
 ### Step 2 — RESOURCE SCOUT
 
 Invoke using the `task` tool:
@@ -189,7 +136,12 @@ prompt: |
   Replace "## Tasks" in PLAN.md. Update STATUS.md.
 ```
 
-### Step 4 — AGENT FACTORY
+### Step 4 — AGENT FACTORY (conditional)
+
+**Skip this step** if BOTH are true: planner created ≤ 2 tasks AND goal domain is generic (no clear need for specialists).
+If skipping: write `loop-stack/<LOOP_ID>/AGENTS.md` with `# Specialized Agents\n## Status\nNONE CREATED` then auto-continue into outer loop.
+
+**Run this step** if EITHER: planner created 3+ tasks, OR goal domain clearly benefits from specialists (security, ML/data science, content production, medical, finance, system design, etc.).
 
 Invoke using the `task` tool:
 ```

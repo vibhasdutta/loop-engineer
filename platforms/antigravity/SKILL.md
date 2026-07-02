@@ -24,6 +24,8 @@ Scan for `loop-stack/*/STATUS.md`. **Skip any directory ending with `_DONE`.**
 - Fresh → delete `loop-stack/<loop-id>/` only (keep `.agents/`), continue to Phase 1.
 **Multiple found:** list all, ask which to resume or type 'fresh'.
 
+> **To update loop-engineer:** re-run `install.sh --update` / `install.ps1 -Update -Antigravity`. Updates are never applied automatically mid-loop.
+
 ---
 
 ## Phase 1 — Core Wizard
@@ -37,94 +39,40 @@ Auto-set: `STOP_CONDITION` = "all tasks in loop-stack/<LOOP_ID>/PLAN.md checked"
 
 ---
 
-## Phase 2 — State File Creation
+## Phase 2+3 — Initialize Loop
 
-Create `loop-stack/<LOOP_ID>/` with PLAN.md (task stub), STATUS.md, MEMORY.md, TOOLS.md, RESEARCH.md, AGENTS.md.
-Create `loop-stack/.global/MEMORY.md` if missing.
+Run the init script — tries all three Antigravity surface paths automatically:
 
-**PLAN.md:**
-
-    # Loop Plan
-    ## Goal
-    {GOAL}
-    ## Stop Condition
-    {STOP_CONDITION}
-    ## Budget
-    20 turns
-    ## Git Integration
-    {yes / no}
-    ## Tasks
-    (will be created by the planner agent)
-
-**STATUS.md:**
-
-    # Loop Status
-    ## State
-    IN_PROGRESS
-    ## Current Task
-    (planning in progress)
-    ## Task Progress
-    0 / ? complete
-    ## Attempts On Current Task
-    0
-    ## Completed Tasks
-    (none)
-    ## Skipped Tasks
-    (none)
-    ## Last Researcher Result
-    (none)
-    ## Last Executor Result
-    (none)
-    ## Last Evaluator Result
-    (none)
-    ## Last Audit Result
-    (none)
-    ## Blocked Reason
-    (none)
-
-**loop-stack/<LOOP_ID>/AGENTS.md:**
-
-    # Specialized Agents
-    ## Status
-    PENDING (agent-factory will populate after planning)
-
-Create `loop-stack/<LOOP_ID>/agents/` directory (agent-factory will write specialist agents here).
-
----
-
-## Phase 3 — Agent File Setup
-
-**CRITICAL: Use shell commands — do NOT write agent files manually.**
-
+**Bash (macOS/Linux):**
 ```bash
-mkdir -p .agents
-mkdir -p .agents/knowledge-sources
-# Try all three surface paths: CLI, IDE, 2.0
-cp ~/.gemini/antigravity-cli/skills/loop-engineer/agents/*.md .agents/ 2>/dev/null || \
-cp ~/.gemini/antigravity/skills/loop-engineer/agents/*.md .agents/ 2>/dev/null || \
-cp ~/.gemini/config/skills/loop-engineer/agents/*.md .agents/
-cp ~/.gemini/antigravity-cli/skills/loop-engineer/agents/knowledge-sources/*.md .agents/knowledge-sources/ 2>/dev/null || \
-cp ~/.gemini/antigravity/skills/loop-engineer/agents/knowledge-sources/*.md .agents/knowledge-sources/ 2>/dev/null || \
-cp ~/.gemini/config/skills/loop-engineer/agents/knowledge-sources/*.md .agents/knowledge-sources/
+INIT_SCRIPT="$(ls \
+  "$HOME/.gemini/antigravity-cli/skills/loop-engineer/scripts/init-loop.sh" \
+  "$HOME/.gemini/antigravity/skills/loop-engineer/scripts/init-loop.sh" \
+  "$HOME/.gemini/config/skills/loop-engineer/scripts/init-loop.sh" 2>/dev/null | head -1)"
+bash "$INIT_SCRIPT" \
+  --loop-id <LOOP_ID> \
+  --goal "<GOAL>" \
+  --stop "all tasks in loop-stack/<LOOP_ID>/PLAN.md checked" \
+  --git <yes/no> \
+  --platform antigravity
 ```
 
-If none of the paths have files, remind the user to install first:
-```bash
-git clone https://github.com/vibhasdutta/loop-engineer
-cd loop-engineer && bash install.sh --antigravity
+**PowerShell (Windows):**
+```powershell
+$init = @(
+  "$env:USERPROFILE\.gemini\antigravity-cli\skills\loop-engineer\scripts\init-loop.ps1",
+  "$env:USERPROFILE\.gemini\antigravity\skills\loop-engineer\scripts\init-loop.ps1",
+  "$env:USERPROFILE\.gemini\config\skills\loop-engineer\scripts\init-loop.ps1"
+) | Where-Object { Test-Path $_ } | Select-Object -First 1
+& $init -LoopId "<LOOP_ID>" -Goal "<GOAL>" `
+  -Stop "all tasks in loop-stack/<LOOP_ID>/PLAN.md checked" `
+  -Git <yes/no> -Platform antigravity
 ```
 
-Then write only `verifier.md` with the actual STOP_CONDITION substituted (never write the literal placeholder):
+If the script is missing, install the skill first:
+`git clone https://github.com/vibhasdutta/loop-engineer && bash install.sh --antigravity`
 
-    # Verifier Agent
-    You are the verifier agent. Never write application code.
-
-    1. Read loop-stack/.global/MEMORY.md FIRST.
-    2. Read [LOOP_DIR]/MEMORY.md, STATUS.md, PLAN.md.
-    3. Run: {STOP_CONDITION}
-    4. PASSES → State VERIFIED_PASS, mark [x], update Task Progress. All done → ALL DONE.
-    5. FAILS → State FAILED, write exact error to Last Executor Result.
-    HARD RULE: Never write application code. Never mark done unless verification passed.
+The script creates `loop-stack/<LOOP_ID>/`, `.agents/` with all agent .md files + knowledge-sources/, and `verifier.md` with the actual stop condition substituted.
 
 ---
 
@@ -160,6 +108,20 @@ Update loop-stack/<LOOP_ID>/STATUS.md "Last Researcher Result".
 Read .agents/researcher.md for full instructions.
 ```
 
+**Also add the watcher as an additional Subagent in the same `invoke_subagent` call** (alongside the researchers):
+
+```
+Prompt:
+Loop directory: loop-stack/<LOOP_ID>/
+Agents in this batch: [list the researcher agents spawned and their focus areas]
+Watch loop-stack/<LOOP_ID>/STATUS.md under "## Active Heartbeats" for updates from these agents.
+Report to loop-stack/<LOOP_ID>/STATUS.md under "## Last Watcher Report".
+Read .agents/watcher.md for full instructions.
+TypeName: "self"
+```
+
+Wait for all subagents (researchers + watcher) to complete before Step 2.
+
 ### Step 2 — RESOURCE SCOUT
 
 Call `invoke_subagent` with one entry, `TypeName: "self"`:
@@ -184,7 +146,12 @@ Read .agents/planner.md for full instructions.
 ```
 Wait for planner to send its completion message.
 
-### Step 4 — AGENT FACTORY
+### Step 4 — AGENT FACTORY (conditional)
+
+**Skip this step** if BOTH are true: planner created ≤ 2 tasks AND goal domain is generic (no clear need for specialists).
+If skipping: write `loop-stack/<LOOP_ID>/AGENTS.md` with `# Specialized Agents\n## Status\nNONE CREATED` then proceed to Phase 5.
+
+**Run this step** if EITHER: planner created 3+ tasks, OR goal domain clearly benefits from specialists (security, ML/data science, content production, medical, finance, system design, etc.).
 
 Call `invoke_subagent` with one entry, `TypeName: "self"`:
 ```
@@ -196,7 +163,7 @@ Write loop-stack/<LOOP_ID>/AGENTS.md listing each created agent and which tasks 
 If generic agents are sufficient, write AGENTS.md with "NONE CREATED".
 Read .agents/agent-factory.md for full instructions.
 ```
-Wait for completion before proceeding to the outer loop.
+Wait for completion before proceeding to Phase 5.
 
 ---
 

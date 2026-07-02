@@ -9,7 +9,7 @@ description: >
 compatibility: Requires git and a terminal backend (local, docker, ssh, modal, or daytona)
 metadata:
   author: vibhasdutta
-  version: "1.0"
+  version: "1.3.0"
   hermes:
     tags: [orchestration, multi-agent, loop-engineering, autonomous, coding]
     category: development
@@ -32,6 +32,8 @@ Scan for `loop-stack/*/STATUS.md`. **Skip any directory ending with `_DONE`.**
 - Fresh → delete `loop-stack/<loop-id>/` only (keep `.hermes/agents/`), continue to Phase 1.
 **Multiple found:** list all, ask which to resume or type 'fresh'.
 
+> **To update loop-engineer:** re-run `install.sh --update` / `install.ps1 -Update -Hermes`. Updates are never applied automatically mid-loop.
+
 ---
 
 ## Phase 1 — Core Wizard
@@ -45,89 +47,34 @@ Auto-set: `STOP_CONDITION` = "all tasks in loop-stack/<LOOP_ID>/PLAN.md checked"
 
 ---
 
-## Phase 2 — State File Creation
+## Phase 2+3 — Initialize Loop
 
-Create `loop-stack/<LOOP_ID>/` with PLAN.md (task stub), STATUS.md, MEMORY.md, TOOLS.md, RESEARCH.md, and AGENTS.md.
-Create `loop-stack/.global/MEMORY.md` if missing.
+Run the init script — creates all state files, copies agent files, and writes verifier in one command:
 
-**STATUS.md:**
-
-    # Loop Status
-    ## State
-    IN_PROGRESS
-    ## Current Task
-    (planning in progress)
-    ## Task Progress
-    0 / ? complete
-    ## Attempts On Current Task
-    0
-    ## Completed Tasks
-    (none)
-    ## Skipped Tasks
-    (none)
-    ## Last Researcher Result
-    (none)
-    ## Last Executor Result
-    (none)
-    ## Last Evaluator Result
-    (none)
-    ## Last Audit Result
-    (none)
-    ## Blocked Reason
-    (none)
-
-**loop-stack/<LOOP_ID>/AGENTS.md:**
-
-    # Specialized Agents
-    ## Status
-    PENDING (agent-factory will populate after planning)
-
-Create `loop-stack/<LOOP_ID>/agents/` directory (agent-factory will write specialist agents here).
-
-**PLAN.md:**
-
-    # Loop Plan
-    ## Goal
-    {GOAL}
-    ## Stop Condition
-    {STOP_CONDITION}
-    ## Budget
-    20 turns
-    ## Git Integration
-    {yes / no}
-    ## Tasks
-    (will be created by the planner agent)
-
----
-
-## Phase 3 — Agent File Setup
-
-**CRITICAL: Use shell commands — do NOT write agent files manually.**
-
+**Bash (macOS/Linux):**
 ```bash
-mkdir -p .hermes/agents
-mkdir -p .hermes/agents/knowledge-sources
-cp ~/.hermes/skills/loop-engineer/agents/*.md .hermes/agents/
-cp ~/.hermes/skills/loop-engineer/agents/knowledge-sources/*.md .hermes/agents/knowledge-sources/
+bash ~/.hermes/skills/loop-engineer/scripts/init-loop.sh \
+  --loop-id <LOOP_ID> \
+  --goal "<GOAL>" \
+  --stop "all tasks in loop-stack/<LOOP_ID>/PLAN.md checked" \
+  --git <yes/no> \
+  --platform hermes
 ```
 
-If the path doesn't exist, remind the user to install the skill first:
-```bash
-git clone https://github.com/vibhasdutta/loop-engineer
-cd loop-engineer && bash install.sh --hermes
+**PowerShell (Windows):**
+```powershell
+& "$env:USERPROFILE\.hermes\skills\loop-engineer\scripts\init-loop.ps1" `
+  -LoopId "<LOOP_ID>" `
+  -Goal "<GOAL>" `
+  -Stop "all tasks in loop-stack/<LOOP_ID>/PLAN.md checked" `
+  -Git <yes/no> `
+  -Platform hermes
 ```
 
-Then write only `verifier.md` with the actual STOP_CONDITION substituted (never write the literal placeholder):
+If the script is missing, install the skill first:
+`git clone https://github.com/vibhasdutta/loop-engineer && bash install.sh --hermes`
 
-    # Verifier Agent
-    You are the verifier agent. Never write application code.
-
-    1. Read loop-stack/.global/MEMORY.md FIRST.
-    2. Read [LOOP_DIR]/MEMORY.md, STATUS.md, PLAN.md.
-    3. Run: {STOP_CONDITION}
-    4. PASSES → State VERIFIED_PASS, mark [x], update Task Progress. All done → ALL DONE.
-    5. FAILS → State FAILED, write exact error to Last Executor Result.
-    HARD RULE: Never write application code. Never mark done unless verification passed.
+The script creates `loop-stack/<LOOP_ID>/`, `.hermes/agents/` with all agent .md files + knowledge-sources/, and `verifier.md` with the actual stop condition substituted.
 
 ---
 
@@ -165,6 +112,18 @@ Domains to distribute across researchers:
 - **Requirements & Constraints**: DB schema, data models, state management (for 3+ researchers)
 - **Environment & Integration**: CI/CD, infrastructure, build, Docker (for 4 researchers)
 
+**Also dispatch the watcher simultaneously with researchers** (add one more `delegate_task` call in the same turn):
+
+```
+Loop directory: loop-stack/<LOOP_ID>/
+Agents in this batch: [list the researcher agents dispatched and their focus areas]
+Watch loop-stack/<LOOP_ID>/STATUS.md under "## Active Heartbeats" for updates from these agents.
+Report to loop-stack/<LOOP_ID>/STATUS.md under "## Last Watcher Report".
+Read .hermes/agents/watcher.md for full instructions.
+```
+
+Wait for all researcher and watcher tasks to complete (check STATUS.md) before Step 2.
+
 ### Step 2 — RESOURCE SCOUT
 
 Call `delegate_task` with:
@@ -188,7 +147,12 @@ Replace "## Tasks" in PLAN.md. Update STATUS.md.
 Read .hermes/agents/planner.md for full instructions.
 ```
 
-### Step 4 — AGENT FACTORY
+### Step 4 — AGENT FACTORY (conditional)
+
+**Skip this step** if BOTH are true: planner created ≤ 2 tasks AND goal domain is generic (no clear need for specialists).
+If skipping: write `loop-stack/<LOOP_ID>/AGENTS.md` with `# Specialized Agents\n## Status\nNONE CREATED` then proceed to Phase 5.
+
+**Run this step** if EITHER: planner created 3+ tasks, OR goal domain clearly benefits from specialists (security, ML/data science, content production, medical, finance, system design, etc.).
 
 Call `delegate_task` with:
 ```

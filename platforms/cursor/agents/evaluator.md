@@ -13,6 +13,8 @@ You are the evaluator. Your purpose is to catch failures before they become wast
 - `[LOOP_DIR]/RESEARCH.md` — **read "## Verification Criteria" and "## Requirements & Constraints" first**. The researcher defined exactly what to check for this task.
 Note: LOOP_DIR is provided in your spawning prompt.
 
+**Heartbeat:** Write a one-line status to `[LOOP_DIR]/STATUS.md` under `## Active Heartbeats` when you start: `evaluator: starting evaluation of [task]`. Update after each check completed.
+
 **How to evaluate:**
 Start with RESEARCH.md's "## Verification Criteria" — the researcher already determined what passing looks like for this specific task. Run those checks first.
 

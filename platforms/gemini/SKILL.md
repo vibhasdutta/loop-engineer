@@ -25,6 +25,8 @@ Scan for `loop-stack/*/STATUS.md`. **Skip any directory ending with `_DONE`.**
 - Fresh → delete `loop-stack/<loop-id>/` only (keep `.gemini/agents/`), continue to Phase 1.
 **Multiple found:** list all, ask which to resume or type 'fresh'.
 
+> **To update loop-engineer:** `gemini skills update loop-engineer` or re-run `install.sh --update` / `install.ps1 -Update -Gemini`. Updates are never applied automatically mid-loop.
+
 ---
 
 ## Phase 1 — Core Wizard
@@ -38,100 +40,37 @@ Auto-set: `STOP_CONDITION` = "all tasks in loop-stack/<LOOP_ID>/PLAN.md checked"
 
 ---
 
-## Phase 2 — State File Creation
+## Phase 2+3 — Initialize Loop
 
-Create `loop-stack/<LOOP_ID>/` with PLAN.md (task stub), STATUS.md, MEMORY.md, TOOLS.md, RESEARCH.md, AGENTS.md.
-Create `loop-stack/.global/MEMORY.md` if missing.
+Run the init script — creates all state files, copies agent files, and writes verifier in one command:
 
-**PLAN.md:**
-
-    # Loop Plan
-    ## Goal
-    {GOAL}
-    ## Stop Condition
-    {STOP_CONDITION}
-    ## Budget
-    20 turns
-    ## Git Integration
-    {yes / no}
-    ## Tasks
-    (will be created by the planner agent)
-
-**STATUS.md:**
-
-    # Loop Status
-    ## State
-    IN_PROGRESS
-    ## Current Task
-    (planning in progress)
-    ## Task Progress
-    0 / ? complete
-    ## Attempts On Current Task
-    0
-    ## Completed Tasks
-    (none)
-    ## Skipped Tasks
-    (none)
-    ## Last Researcher Result
-    (none)
-    ## Last Executor Result
-    (none)
-    ## Last Evaluator Result
-    (none)
-    ## Last Audit Result
-    (none)
-    ## Blocked Reason
-    (none)
-
-**loop-stack/<LOOP_ID>/AGENTS.md:**
-
-    # Specialized Agents
-    ## Status
-    PENDING (agent-factory will populate after planning)
-
-Create `loop-stack/<LOOP_ID>/agents/` directory (agent-factory will write specialist agents here).
-
----
-
-## Phase 3 — Agent File Setup
-
-**CRITICAL: Use shell commands — do NOT write agent files manually.**
-
+**Bash (macOS/Linux):**
 ```bash
-mkdir -p .gemini/agents
-mkdir -p .gemini/agents/knowledge-sources
-cp ~/.gemini/skills/loop-engineer/agents/resource-scout.md .gemini/agents/
-cp ~/.gemini/skills/loop-engineer/agents/researcher.md .gemini/agents/
-cp ~/.gemini/skills/loop-engineer/agents/planner.md .gemini/agents/
-cp ~/.gemini/skills/loop-engineer/agents/agent-factory.md .gemini/agents/
-cp ~/.gemini/skills/loop-engineer/agents/executor.md .gemini/agents/
-cp ~/.gemini/skills/loop-engineer/agents/evaluator.md .gemini/agents/
-cp ~/.gemini/skills/loop-engineer/agents/auditor.md .gemini/agents/
-cp ~/.gemini/skills/loop-engineer/agents/memory-keeper.md .gemini/agents/
-cp ~/.gemini/skills/loop-engineer/agents/knowledge-sources/*.md .gemini/agents/knowledge-sources/
+bash ~/.gemini/skills/loop-engineer/scripts/init-loop.sh \
+  --loop-id <LOOP_ID> \
+  --goal "<GOAL>" \
+  --stop "all tasks in loop-stack/<LOOP_ID>/PLAN.md checked" \
+  --git <yes/no> \
+  --platform gemini
 ```
 
-If the skill files are missing (skill not yet installed), remind the user to run:
+**PowerShell (Windows):**
+```powershell
+& "$env:USERPROFILE\.gemini\skills\loop-engineer\scripts\init-loop.ps1" `
+  -LoopId "<LOOP_ID>" `
+  -Goal "<GOAL>" `
+  -Stop "all tasks in loop-stack/<LOOP_ID>/PLAN.md checked" `
+  -Git <yes/no> `
+  -Platform gemini
+```
+
+If the script is missing, install the skill first:
 ```bash
 gemini skills install https://github.com/vibhasdutta/loop-engineer
+# or local: gemini skills link ./loop-engineer
 ```
-Or for local install after git clone: `gemini skills link ./path/to/loop-engineer`
 
-Then write only `verifier.md` with actual STOP_CONDITION substituted:
-
-    ---
-    name: verifier
-    description: Runs the stop condition. Marks tasks done or failed. Never writes application code.
-    kind: local
-    max_turns: 15
-    temperature: 0.1
-    ---
-    1. Read loop-stack/.global/MEMORY.md FIRST.
-    2. Read [LOOP_DIR]/MEMORY.md, STATUS.md, PLAN.md.
-    3. Run: {STOP_CONDITION}
-    4. PASSES → State VERIFIED_PASS, mark [x], update Task Progress. All done → ALL DONE.
-    5. FAILS → State FAILED, write exact error to Last Executor Result.
-    HARD RULE: Never write application code. Never mark done unless verification passed.
+The script creates `loop-stack/<LOOP_ID>/`, `.gemini/agents/` with all agent .md files + knowledge-sources/, and `verifier.md` with the actual stop condition substituted.
 
 ---
 
@@ -165,6 +104,15 @@ Update STATUS.md "Last Researcher Result".
 
 Wait for all researchers to complete before Step 2.
 
+Invoke the `watcher` agent:
+```
+Loop directory: loop-stack/<LOOP_ID>/
+Agents watched: researchers (just completed)
+Check loop-stack/<LOOP_ID>/STATUS.md ## Active Heartbeats for signs of incomplete work.
+If any researcher shows incomplete heartbeat, report STUCK in ## Last Watcher Report.
+```
+Wait for watcher to complete.
+
 ### Step 2 — RESOURCE SCOUT
 
 Invoke the `resource-scout` agent:
@@ -187,7 +135,12 @@ Replace "## Tasks" in PLAN.md. Update STATUS.md.
 ```
 Wait for subagent to complete.
 
-### Step 4 — AGENT FACTORY
+### Step 4 — AGENT FACTORY (conditional)
+
+**Skip this step** if BOTH are true: planner created ≤ 2 tasks AND goal domain is generic (no clear need for specialists).
+If skipping: write `loop-stack/<LOOP_ID>/AGENTS.md` with `# Specialized Agents\n## Status\nNONE CREATED` then auto-continue into outer loop.
+
+**Run this step** if EITHER: planner created 3+ tasks, OR goal domain clearly benefits from specialists (security, ML/data science, content production, medical, finance, system design, etc.).
 
 Invoke the `agent-factory` agent:
 ```

@@ -7,6 +7,8 @@ You are the evaluator. Your purpose is to catch failures before they become wast
 
 Note: LOOP_DIR is provided in your spawning prompt (e.g., "Loop directory: loop-stack/<LOOP_ID>/").
 
+Heartbeat: Write a one-line status to [LOOP_DIR]/STATUS.md under "## Active Heartbeats" when you start: evaluator: starting evaluation of [task]. Update after each check completed.
+
 Read before evaluating:
 - loop-stack/.global/MEMORY.md and loop-stack/.global/TOOLS.md — global context
 - [LOOP_DIR]/MEMORY.md and [LOOP_DIR]/TOOLS.md — loop-specific context

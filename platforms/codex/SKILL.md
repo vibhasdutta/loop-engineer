@@ -23,6 +23,8 @@ Scan for `loop-stack/*/STATUS.md`. **Skip any directory ending with `_DONE`.**
 - Fresh → delete `loop-stack/<loop-id>/` only (keep `.codex/agents/`), continue to Phase 1.
 **Multiple found:** list all, ask which to resume or type 'fresh'.
 
+> **To update loop-engineer:** re-run `install.sh --update` / `install.ps1 -Update -Codex`. Updates are never applied automatically mid-loop.
+
 ---
 
 ## Phase 1 — Core Wizard
@@ -38,104 +40,34 @@ Store: `GOAL`, `LOOP_ID`, `STOP_CONDITION`, `MAX_TURNS`, `USE_GIT`.
 
 ---
 
-## Phase 2 — State File Creation
+## Phase 2+3 — Initialize Loop
 
-Create `loop-stack/<LOOP_ID>/` with:
-
-**PLAN.md** (task stub — planner fills in during /goal execution):
-
-    # Loop Plan
-    ## Goal
-    {GOAL}
-    ## Stop Condition
-    {STOP_CONDITION}
-    ## Budget
-    20 turns
-    ## Git Integration
-    {yes / no}
-    ## Tasks
-    (will be created by the planner agent)
-
-**STATUS.md:**
-
-    # Loop Status
-    ## State
-    IN_PROGRESS
-    ## Current Task
-    (planning in progress)
-    ## Task Progress
-    0 / ? complete
-    ## Attempts On Current Task
-    0
-    ## Completed Tasks
-    (none)
-    ## Skipped Tasks
-    (none)
-    ## Last Researcher Result
-    (none)
-    ## Last Executor Result
-    (none)
-    ## Last Evaluator Result
-    (none)
-    ## Last Audit Result
-    (none)
-    ## Blocked Reason
-    (none)
-
-**MEMORY.md:** `# Loop Memory\nUpdated continuously.\n## Learnings\n(none yet)`
-**TOOLS.md:** `# Discovered Tools\n## Status\nPENDING`
-**RESEARCH.md:** `# Research Log\n## Context & Prior Work\n(pending)\n## External Knowledge & Resources\n(pending)\n## Task-Specific Research\n(pending)`
-**AGENTS.md:** `# Specialized Agents\n## Status\nPENDING (agent-factory will populate after planning)`
-
-Create `loop-stack/<LOOP_ID>/agents/` directory (agent-factory will write specialist agents here).
-
-Create `loop-stack/.global/MEMORY.md` if missing.
-
----
-
-## Phase 3 — Agent File Setup
-
-**CRITICAL: Use shell commands — do NOT write agent files manually.**
-
-Create `.codex/agents/` then copy agent TOML files:
+Run the init script — creates all state files, copies TOML agent files + knowledge-sources, and writes verifier in one command:
 
 **PowerShell (Windows):**
 ```powershell
-New-Item -ItemType Directory -Force .codex\agents | Out-Null
-New-Item -ItemType Directory -Force ".codex\knowledge-sources" | Out-Null
-Copy-Item "$env:USERPROFILE\.codex\skills\loop-engineer\agents\*.toml" ".codex\agents\"
-Copy-Item "$env:USERPROFILE\.codex\skills\loop-engineer\knowledge-sources\*.md" ".codex\knowledge-sources\"
-Copy-Item "$env:USERPROFILE\.codex\skills\loop-engineer\knowledge-sources.md" ".codex\knowledge-sources.md"
+& "$env:USERPROFILE\.codex\skills\loop-engineer\scripts\init-loop.ps1" `
+  -LoopId "<LOOP_ID>" `
+  -Goal "<GOAL>" `
+  -Stop "all tasks in loop-stack/<LOOP_ID>/PLAN.md checked" `
+  -Git <yes/no> `
+  -Platform codex
 ```
 
 **Bash (macOS/Linux):**
 ```bash
-mkdir -p .codex/agents
-mkdir -p .codex/knowledge-sources
-cp ~/.codex/skills/loop-engineer/agents/*.toml .codex/agents/
-cp ~/.codex/skills/loop-engineer/knowledge-sources/*.md .codex/knowledge-sources/
-cp ~/.codex/skills/loop-engineer/knowledge-sources.md .codex/knowledge-sources.md
+bash ~/.codex/skills/loop-engineer/scripts/init-loop.sh \
+  --loop-id <LOOP_ID> \
+  --goal "<GOAL>" \
+  --stop "all tasks in loop-stack/<LOOP_ID>/PLAN.md checked" \
+  --git <yes/no> \
+  --platform codex
 ```
 
-Then write only `verifier.toml` with the actual STOP_CONDITION substituted:
+If the script is missing, install the skill first:
+`git clone https://github.com/vibhasdutta/loop-engineer && bash install.sh --codex`
 
-    name = "verifier"
-    description = "Runs the stop condition. Marks tasks done or failed. Never writes application code."
-    model = "gpt-5.5"
-    model_reasoning_effort = "high"
-    developer_instructions = """
-    Note: LOOP_DIR is provided in your spawning prompt.
-    1. Read loop-stack/.global/MEMORY.md FIRST.
-    2. Read [LOOP_DIR]/MEMORY.md, STATUS.md, PLAN.md.
-    3. Run: {STOP_CONDITION}
-    4. PASSES → set State VERIFIED_PASS, mark task [x] in PLAN.md, update Task Progress. All done → ALL DONE.
-    5. FAILS → set State FAILED, write exact error to Last Executor Result.
-    HARD RULE: Never write application code. Never mark done unless verification passed.
-    Call report_agent_job_result when done.
-    """
-
-Confirm:
-> "loop-stack/<LOOP_ID>/ created · .codex/agents/ ready · Generating /goal command..."
+The script creates `loop-stack/<LOOP_ID>/`, `.codex/agents/` with all TOML agent files, `.codex/knowledge-sources/` with all reference .md files, and `verifier.toml` with the actual stop condition substituted.
 
 ---
 
@@ -180,6 +112,15 @@ Each researcher prompt:
 
 Wait for ALL researchers to complete.
 
+Spawn watcher immediately after researchers complete:
+  Loop directory: loop-stack/<LOOP_ID>/
+  Agents watched: researchers (just completed in Step 1)
+  Check loop-stack/<LOOP_ID>/STATUS.md ## Active Heartbeats for signs of incomplete work.
+  If any researcher shows incomplete heartbeat, report STUCK in ## Last Watcher Report.
+  Read .codex/agents/watcher.toml for full instructions.
+  Call report_agent_job_result when done.
+Wait for watcher to complete.
+
 Step 2 — spawn_agent: resource-scout
   Loop directory: loop-stack/<LOOP_ID>/
   Check loop-stack/.global/TOOLS.md — if < 7 days old, reuse. Otherwise discover all tools.
@@ -197,7 +138,13 @@ Step 3 — spawn_agent: planner
   Call report_agent_job_result when done.
 Wait for planner to complete.
 
-Step 4 — spawn_agent: agent-factory
+Step 4 — Agent-factory (conditional):
+Read PLAN.md to count tasks. Assess goal domain.
+- SKIP if BOTH: task count ≤ 2 AND goal domain is generic (no clear need for specialists).
+  If skipping: write loop-stack/<LOOP_ID>/AGENTS.md with "# Specialized Agents\n## Status\nNONE CREATED". Proceed to outer loop.
+- RUN if EITHER: task count ≥ 3 OR goal domain clearly benefits from specialists (security, ML/data science, content production, medical, finance, system design, etc.).
+
+If running: spawn_agent: agent-factory
   Loop directory: loop-stack/<LOOP_ID>/
   Read PLAN.md (goal + tasks), RESEARCH.md, and TOOLS.md.
   Analyze the goal domain. Determine what specialized agents would improve execution quality.
@@ -206,7 +153,7 @@ Step 4 — spawn_agent: agent-factory
   If generic agents sufficient, write AGENTS.md with "NONE CREATED".
   Read .codex/agents/agent-factory.toml for full instructions.
   Call report_agent_job_result when done.
-Wait for agent-factory to complete.
+Wait for agent-factory to complete (if spawned).
 
 ═══ OUTER LOOP ═══
 
