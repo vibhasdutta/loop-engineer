@@ -68,8 +68,13 @@ case "$PLATFORM" in
     AGENTS_DIR=".codex/agents"
     KNOWLEDGE_DIR=".codex/knowledge-sources"
     ;;
+  copilot)
+    SKILL_DIR="$HOME/.config/loop-engineer/copilot"
+    AGENTS_DIR=".github/loop-engineer/agents"
+    PROMPT_DIR=".github/prompts"
+    ;;
   *)
-    echo "Unknown platform: $PLATFORM (claude|cursor|gemini|antigravity|opencode|hermes|codex)" >&2
+    echo "Unknown platform: $PLATFORM (claude|cursor|gemini|antigravity|opencode|hermes|codex|copilot)" >&2
     exit 1
     ;;
 esac
@@ -84,6 +89,9 @@ mkdir -p "$GLOBAL_DIR"
 mkdir -p "$AGENTS_DIR"
 if [[ "$PLATFORM" == "codex" ]]; then
   mkdir -p "$KNOWLEDGE_DIR"
+elif [[ "$PLATFORM" == "copilot" ]]; then
+  mkdir -p "$AGENTS_DIR"
+  mkdir -p "$PROMPT_DIR"
 else
   mkdir -p "$AGENTS_DIR/knowledge-sources"
 fi
@@ -179,12 +187,20 @@ if [[ -n "$SKILL_DIR" && -d "$SKILL_DIR" ]]; then
     cp "$SKILL_DIR/agents/"*.toml "$AGENTS_DIR/" 2>/dev/null || true
     cp "$SKILL_DIR/knowledge-sources/"*.md "$KNOWLEDGE_DIR/" 2>/dev/null || true
     [[ -f "$SKILL_DIR/knowledge-sources.md" ]] && cp "$SKILL_DIR/knowledge-sources.md" ".codex/knowledge-sources.md"
+  elif [[ "$PLATFORM" == "copilot" ]]; then
+    cp "$SKILL_DIR/agents/"*.md "$AGENTS_DIR/" 2>/dev/null || true
+    # Copy prompt file (the SKILL.md becomes the .prompt.md for the user)
+    [[ -f "$SKILL_DIR/SKILL.md" ]] && cp "$SKILL_DIR/SKILL.md" "$PROMPT_DIR/loop-engineer.prompt.md"
+    # Write workspace instructions file if missing
+    if [[ ! -f ".github/copilot-instructions.md" ]]; then
+      [[ -f "$SKILL_DIR/copilot-instructions.md" ]] && cp "$SKILL_DIR/copilot-instructions.md" ".github/copilot-instructions.md"
+    fi
   else
     cp "$SKILL_DIR/agents/"*.md "$AGENTS_DIR/" 2>/dev/null || true
     cp "$SKILL_DIR/agents/knowledge-sources/"*.md "$AGENTS_DIR/knowledge-sources/" 2>/dev/null || true
   fi
 else
-  echo "⚠ Skill dir not found for platform '$PLATFORM' — agent files not copied. Run install.sh first." >&2
+  echo "Skill dir not found for platform '$PLATFORM' -- agent files not copied. Run install.sh first." >&2
 fi
 
 # ── Write verifier with actual STOP_CONDITION ─────────────────────────────────
@@ -223,7 +239,7 @@ temperature: 0.1
 HARD RULE: Never write application code. Never mark done unless verification passed.
 VERIFIER
     ;;
-  antigravity|hermes)
+  antigravity|hermes|copilot)
     cat > "$AGENTS_DIR/verifier.md" <<VERIFIER
 # Verifier Agent
 You are the verifier agent. Never write application code.

@@ -8,6 +8,7 @@
 #   bash install.sh --codex      → OpenAI Codex CLI
 #   bash install.sh --opencode   → OpenCode
 #   bash install.sh --hermes     → Hermes Agent
+#   bash install.sh --copilot    → VS Code GitHub Copilot
 #   bash install.sh --all        → all platforms
 #   bash install.sh --update     → git pull + re-install Claude Code
 #   bash install.sh --update --cursor → git pull + re-install Cursor
@@ -153,6 +154,21 @@ install_hermes() {
   echo "Use /loop-engineer in any Hermes session."
 }
 
+install_copilot() {
+  local dir="${HOME}/.config/loop-engineer/copilot"
+  mkdir -p "$dir/agents"
+  cp "$REPO_DIR/platforms/copilot/SKILL.md" "$dir/SKILL.md"
+  cp "$REPO_DIR/platforms/copilot/copilot-instructions.md" "$dir/copilot-instructions.md"
+  cp "$REPO_DIR/platforms/copilot/agents/"*.md "$dir/agents/"
+  _copy_scripts "$dir"
+  echo "VS Code Copilot: installed to $dir"
+  echo ""
+  echo "Per-project setup (run from your project root):"
+  echo "  bash $dir/scripts/init-loop.sh --loop-id <id> --goal \"<goal>\" --stop \"all tasks in loop-stack/<id>/PLAN.md checked\" --platform copilot"
+  echo ""
+  echo "Then in VS Code: open Copilot Chat in Agent mode, attach .github/prompts/loop-engineer.prompt.md via #, and describe your goal."
+}
+
 case "$MODE" in
   --cursor)      install_cursor ;;
   --gemini)      install_gemini ;;
@@ -160,7 +176,8 @@ case "$MODE" in
   --codex)       install_codex ;;
   --opencode)    install_opencode ;;
   --hermes)      install_hermes ;;
-  --all)         install_claude && install_cursor && install_gemini && install_codex && install_opencode && install_hermes ;;
+  --copilot)     install_copilot ;;
+  --all)         install_claude && install_cursor && install_gemini && install_codex && install_opencode && install_hermes && install_copilot ;;
   *)             install_claude ;;
 esac
 

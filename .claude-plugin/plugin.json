@@ -1,6 +1,6 @@
 {
   "name": "loop-engineer",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Loop engineering wizard for Claude Code. Answer 2 questions and Claude orchestrates a self-assembling, fully autonomous 9-agent team until your goal is met — for any domain, not just code.",
   "author": {
     "name": "Vibhas Dutta",

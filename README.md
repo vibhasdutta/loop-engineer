@@ -5,7 +5,7 @@
 
   <p>Answer 2 questions. A self-assembling 9-agent team runs fully autonomously until your goal is done.</p>
 
-  ![Version](https://img.shields.io/badge/version-1.3.0-0d9488?style=flat-square)
+  ![Version](https://img.shields.io/badge/version-1.4.0-0d9488?style=flat-square)
   ![Claude Code](https://img.shields.io/badge/Claude_Code-supported-1a1a2e?style=flat-square&logo=anthropic&logoColor=white)
   ![Cursor](https://img.shields.io/badge/Cursor-supported-000000?style=flat-square)
   ![Gemini CLI](https://img.shields.io/badge/Gemini_CLI-supported-4285F4?style=flat-square&logo=google&logoColor=white)
@@ -13,6 +13,7 @@
   ![OpenCode](https://img.shields.io/badge/OpenCode-supported-f97316?style=flat-square)
   ![Hermes](https://img.shields.io/badge/Hermes_Agent-supported-e11d48?style=flat-square)
   ![Codex](https://img.shields.io/badge/OpenAI_Codex-supported-412991?style=flat-square&logo=openai&logoColor=white)
+  ![VS Code Copilot](https://img.shields.io/badge/VS_Code_Copilot-supported-0078D4?style=flat-square&logo=visualstudiocode&logoColor=white)
   ![agentskills.io](https://img.shields.io/badge/agentskills.io-compatible-22c55e?style=flat-square)
   ![License](https://img.shields.io/badge/license-MIT-6b7280?style=flat-square)
 
@@ -50,6 +51,7 @@ Works for any objective: software development, research papers, data analysis, c
 | **Gemini CLI** | `/loop-engineer` | named agent tools | ⚡ sequential |
 | **OpenCode** | `/loop-engineer` | `task` tool | ⚡ sequential |
 | **OpenAI Codex CLI** | `/loop-engineer` | `spawn_agent` | ✅ true parallel |
+| **VS Code GitHub Copilot** | attach `loop-engineer.prompt.md` | `readFile` + agent roles | ⚡ sequential |
 
 ---
 
@@ -79,6 +81,7 @@ bash install.sh --antigravity # Antigravity (CLI + IDE + 2.0)
 bash install.sh --opencode   # OpenCode
 bash install.sh --hermes     # Hermes Agent
 bash install.sh --codex      # OpenAI Codex CLI
+bash install.sh --copilot    # VS Code GitHub Copilot
 bash install.sh --all        # all platforms
 ```
 
@@ -94,6 +97,7 @@ cd loop-engineer
 .\install.ps1 -OpenCode    # OpenCode
 .\install.ps1 -Hermes      # Hermes Agent
 .\install.ps1 -Codex       # OpenAI Codex CLI
+.\install.ps1 -Copilot     # VS Code GitHub Copilot
 .\install.ps1 -All         # all platforms
 ```
 
@@ -133,6 +137,11 @@ cd loop-engineer
 /loop-engineer
 ```
 This scaffolds the state files and prints a `/goal` command to paste for the actual loop run.
+
+**VS Code GitHub Copilot** — after installing:
+1. From your project root, run the init command printed by install (or run `init-loop.sh --platform copilot` directly).
+2. Open Copilot Chat, switch to **Agent mode**.
+3. Attach `.github/prompts/loop-engineer.prompt.md` via `#loop-engineer.prompt` and describe your goal.
 
 The wizard asks **2 questions only:**
 
@@ -242,6 +251,7 @@ loop-stack/
 | OpenCode | `AGENTS.md` | `.opencode/agents/` | `~/.config/opencode/skills/` | `opencode.json` → `mcp` key |
 | Hermes Agent | `HERMES.md` / `.hermes.md` | `.hermes/agents/` | `~/.hermes/skills/` | `~/.hermes/config.yaml` → `mcp_servers` |
 | OpenAI Codex CLI | — | `.codex/agents/` (TOML) | `~/.codex/skills/` | `~/.codex/config.yaml` |
+| VS Code Copilot | `.github/copilot-instructions.md` | `.github/loop-engineer/agents/` | `~/.config/loop-engineer/copilot/` | `.vscode/mcp.json` |
 
 > **Codex note:** knowledge-sources live at `.codex/knowledge-sources/` (sibling of agents/, not inside it) — Codex's agents/ directory holds only TOML agent definitions.
 

@@ -54,8 +54,13 @@ switch ($Platform) {
     $AgentsDir      = ".codex\agents"
     $KnowledgeDir   = ".codex\knowledge-sources"
   }
+  "copilot" {
+    $SkillDir  = "$env:USERPROFILE\.config\loop-engineer\copilot"
+    $AgentsDir = ".github\loop-engineer\agents"
+    $PromptDir = ".github\prompts"
+  }
   default {
-    Write-Error "Unknown platform: $Platform (claude|cursor|gemini|antigravity|opencode|hermes|codex)"
+    Write-Error "Unknown platform: $Platform (claude|cursor|gemini|antigravity|opencode|hermes|codex|copilot)"
     exit 1
   }
 }
@@ -70,6 +75,9 @@ New-Item -ItemType Directory -Force $GlobalDir         | Out-Null
 New-Item -ItemType Directory -Force $AgentsDir         | Out-Null
 if ($Platform -eq "codex") {
   New-Item -ItemType Directory -Force $KnowledgeDir | Out-Null
+} elseif ($Platform -eq "copilot") {
+  New-Item -ItemType Directory -Force $AgentsDir  | Out-Null
+  New-Item -ItemType Directory -Force $PromptDir  | Out-Null
 } else {
   New-Item -ItemType Directory -Force "$AgentsDir\knowledge-sources" | Out-Null
 }
@@ -168,6 +176,14 @@ if ($SkillDir -and (Test-Path $SkillDir)) {
     try { Copy-Item "$SkillDir\knowledge-sources\*.md" $KnowledgeDir -ErrorAction SilentlyContinue } catch {}
     $ksIndex = "$SkillDir\knowledge-sources.md"
     if (Test-Path $ksIndex) { Copy-Item $ksIndex ".codex\knowledge-sources.md" }
+  } elseif ($Platform -eq "copilot") {
+    try { Copy-Item "$SkillDir\agents\*.md" $AgentsDir -ErrorAction SilentlyContinue } catch {}
+    $promptSrc = "$SkillDir\SKILL.md"
+    if (Test-Path $promptSrc) { Copy-Item $promptSrc "$PromptDir\loop-engineer.prompt.md" -Force }
+    if (-not (Test-Path ".github\copilot-instructions.md")) {
+      $instrSrc = "$SkillDir\copilot-instructions.md"
+      if (Test-Path $instrSrc) { Copy-Item $instrSrc ".github\copilot-instructions.md" }
+    }
   } else {
     try { Copy-Item "$SkillDir\agents\*.md" $AgentsDir -ErrorAction SilentlyContinue } catch {}
     try { Copy-Item "$SkillDir\agents\knowledge-sources\*.md" "$AgentsDir\knowledge-sources\" -ErrorAction SilentlyContinue } catch {}
@@ -212,7 +228,7 @@ temperature: 0.1
 HARD RULE: Never write application code. Never mark done unless verification passed.
 "@ | Set-Content "$AgentsDir\verifier.md" -Encoding utf8
   }
-  { $_ -in "antigravity","hermes" } {
+  { $_ -in "antigravity","hermes","copilot" } {
     @"
 # Verifier Agent
 You are the verifier agent. Never write application code.

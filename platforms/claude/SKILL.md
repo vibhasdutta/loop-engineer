@@ -20,18 +20,29 @@ You are running a loop engineering wizard. Follow these phases in order.
 Before anything else, scan for any `loop-stack/*/STATUS.md` files in the current directory.
 **Skip any directory whose name ends with `_DONE` — those loops are already complete.**
 
-**If none found (excluding `_DONE` folders):** continue to Phase 1.
+**If none found** (no active loops):
+- Check `loop-stack/*_DONE/` for completed loops. If continuation intent in user message ("continue", "proceed", "keep going", "finish", "resume", "pick up", "fix what", "audit findings", "where we left") AND a `_DONE` directory exists → read its REPORT.md and MEMORY.md. Tell user: "Found completed loop {id} — starting a follow-on loop using those findings as context." Proceed to Phase 1. In Phase 2+3, after writing RESEARCH.md, append a "## Prior Loop Findings" section with the done loop's REPORT.md summary and MEMORY.md learnings.
+- Otherwise → continue to Phase 1.
 
-**If one found:** Read it and tell the user:
-> "Found an existing loop: loop-stack/{loop-id}/
-> State: {State}  |  Current task: {Current Task}  |  Progress: {Task Progress}
->
-> Resume this loop or start fresh?"
+**If one found:** Read it.
+- **Continuation intent:** If the user's message contains "continue", "proceed", "keep going", "finish", "resume", "pick up", "fix what", "do the fixes", "audit findings", or "where we left" → auto-resume to Phase 5 immediately without asking.
+- Otherwise tell the user:
+  > "Found an existing loop: loop-stack/{loop-id}/
+  > State: {State}  |  Current task: {Current Task}  |  Progress: {Task Progress}
+  >
+  > Resume this loop or start fresh?"
+  - **Resume** → skip to Phase 5 (Outer Loop).
+  - **Fresh** → delete only `loop-stack/<loop-id>/` directory (do NOT delete `.claude/agents/`), continue to Phase 1.
 
-- **Resume** → skip to Phase 5 (Outer Loop) using existing files in `loop-stack/{loop-id}/`.
-- **Fresh** → delete only `loop-stack/<loop-id>/` directory (do NOT delete `.claude/agents/`), continue to Phase 1.
+**If multiple found:** List them all and ask which to resume or type 'fresh'. If continuation intent, auto-resume the most recent active loop.
 
-**If multiple found:** List them all and ask which to resume or type 'fresh'.
+**RESUME RULES — always apply when skipping to Phase 5:**
+- Skip Phase 2, 3, and 4 entirely — do NOT re-run them.
+- Do NOT re-create state files, re-copy agent files, or re-run the startup sequence.
+- Read STATUS.md → Current Task, Task Progress, Last Results per agent.
+- Read PLAN.md → all pending (unchecked) tasks.
+- Existing RESEARCH.md, MEMORY.md, TOOLS.md, AGENTS.md are valid — reuse without re-running agents.
+- Resume from exactly where the loop stopped.
 
 > **To update loop-engineer:** `claude plugin update https://github.com/vibhasdutta/loop-engineer` (plugin install) or re-run `install.sh --update` / `install.ps1 -Update` (manual install). Updates are never applied automatically mid-loop.
 

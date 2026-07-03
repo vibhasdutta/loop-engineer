@@ -7,10 +7,11 @@
 #   .\install.ps1 -Codex       -> OpenAI Codex CLI
 #   .\install.ps1 -OpenCode    -> OpenCode
 #   .\install.ps1 -Hermes      -> Hermes Agent
+#   .\install.ps1 -Copilot     -> VS Code GitHub Copilot
 #   .\install.ps1 -All         -> all platforms
 #   .\install.ps1 -Update      -> git pull + re-install Claude Code
 #   .\install.ps1 -Update -Cursor -> git pull + re-install Cursor
-# Also accepts bash-style flags: --cursor, --gemini, --codex, --opencode, --hermes, --all, --update
+# Also accepts bash-style flags: --cursor, --gemini, --codex, --opencode, --hermes, --copilot, --all, --update
 
 param(
     [switch]$Cursor,
@@ -19,6 +20,7 @@ param(
     [switch]$Codex,
     [switch]$OpenCode,
     [switch]$Hermes,
+    [switch]$Copilot,
     [switch]$All,
     [switch]$Update,
     [Parameter(ValueFromRemainingArguments)][string[]]$ExtraArgs
@@ -33,6 +35,7 @@ foreach ($arg in $ExtraArgs) {
         'codex'       { $Codex = $true }
         'opencode'    { $OpenCode = $true }
         'hermes'      { $Hermes = $true }
+        'copilot'     { $Copilot = $true }
         'all'         { $All = $true }
         'update'      { $Update = $true }
     }
@@ -170,6 +173,21 @@ function Install-Hermes {
     Write-Host "Use /loop-engineer in any Hermes session."
 }
 
+function Install-Copilot {
+    $dir = "$env:USERPROFILE\.config\loop-engineer\copilot"
+    New-Item -ItemType Directory -Force "$dir\agents" | Out-Null
+    Copy-Item "$RepoDir\platforms\copilot\SKILL.md" "$dir\SKILL.md" -Force
+    Copy-Item "$RepoDir\platforms\copilot\copilot-instructions.md" "$dir\copilot-instructions.md" -Force
+    Copy-Item "$RepoDir\platforms\copilot\agents\*.md" "$dir\agents\" -Force
+    Copy-Scripts $dir
+    Write-Host "VS Code Copilot: installed to $dir"
+    Write-Host ""
+    Write-Host "Per-project setup (run from your project root):"
+    Write-Host "  & `"$dir\scripts\init-loop.ps1`" -LoopId <id> -Goal `"<goal>`" -Stop `"all tasks in loop-stack/<id>/PLAN.md checked`" -Platform copilot"
+    Write-Host ""
+    Write-Host "Then in VS Code: open Copilot Chat in Agent mode, attach .github/prompts/loop-engineer.prompt.md via #, and describe your goal."
+}
+
 if ($All) {
     Install-Claude
     Install-Cursor
@@ -177,6 +195,7 @@ if ($All) {
     Install-Codex
     Install-OpenCode
     Install-Hermes
+    Install-Copilot
 } elseif ($Cursor) {
     Install-Cursor
 } elseif ($Gemini) {
@@ -189,6 +208,8 @@ if ($All) {
     Install-OpenCode
 } elseif ($Hermes) {
     Install-Hermes
+} elseif ($Copilot) {
+    Install-Copilot
 } else {
     Install-Claude
 }

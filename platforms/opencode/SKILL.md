@@ -18,11 +18,16 @@ You are running a loop engineering wizard. Follow these phases in order.
 
 Scan for `loop-stack/*/STATUS.md`. **Skip any directory ending with `_DONE`.**
 
-**None found:** continue to Phase 1.
-**One found:** show State/Current Task/Progress, ask: Resume or Fresh?
+**None found:**
+- Check `loop-stack/*_DONE/` — if continuation intent ("continue", "proceed", "finish", "resume", "pick up", "fix what", "audit findings", "where we left") AND `_DONE` exists → read its REPORT.md + MEMORY.md, tell user "Found completed loop {id} — starting follow-on using those findings", then Phase 1 with prior findings pre-loaded into new loop's RESEARCH.md "## Prior Loop Findings".
+- Otherwise → Phase 1.
+**One found:** Read it. If continuation intent → auto-resume to Phase 5 without asking. Otherwise show State/Current Task/Progress, ask: Resume or Fresh?
 - Resume → skip to Phase 5.
 - Fresh → delete `loop-stack/<loop-id>/` only (keep `.opencode/agents/`), continue to Phase 1.
-**Multiple found:** list all, ask which to resume or type 'fresh'.
+**Multiple found:** list all, ask which to resume or 'fresh'. If continuation intent, auto-resume most recent active loop.
+
+**RESUME RULES — always apply when going to Phase 5 via resume:**
+Skip Phase 2, 3, and 4 entirely. Read STATUS.md + PLAN.md to find where the loop stopped. Reuse existing RESEARCH.md, MEMORY.md, TOOLS.md, AGENTS.md — do not re-run startup agents.
 
 > **To update loop-engineer:** re-run `install.sh --update` / `install.ps1 -Update -OpenCode`. Updates are never applied automatically mid-loop.
 
