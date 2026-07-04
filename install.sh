@@ -174,6 +174,7 @@ install_copilot() {
   cp "$REPO_DIR/platforms/copilot/SKILL.md" "$dir/SKILL.md"
   cp "$REPO_DIR/platforms/copilot/copilot-instructions.md" "$dir/copilot-instructions.md"
   cp "$REPO_DIR/platforms/copilot/agents/"*.md "$dir/agents/"
+  _copy_knowledge_sources "$REPO_DIR/platforms/copilot/agents" "$dir/agents"
   _copy_scripts "$dir"
   echo "VS Code Copilot: installed to $dir"
   echo ""

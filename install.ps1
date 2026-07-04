@@ -191,6 +191,7 @@ function Install-Copilot {
     Copy-Item "$RepoDir\platforms\copilot\SKILL.md" "$dir\SKILL.md" -Force
     Copy-Item "$RepoDir\platforms\copilot\copilot-instructions.md" "$dir\copilot-instructions.md" -Force
     Copy-Item "$RepoDir\platforms\copilot\agents\*.md" "$dir\agents\" -Force
+    Copy-KnowledgeSources "$RepoDir\platforms\copilot\agents" "$dir\agents"
     Copy-Scripts $dir
     Write-Host "VS Code Copilot: installed to $dir"
     Write-Host ""

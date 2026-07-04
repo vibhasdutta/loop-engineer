@@ -116,7 +116,9 @@ The script creates `loop-stack/<LOOP_ID>/`, `.agents/` with all agent .md files 
 
 ## Phase 4 — Startup Sequence
 
-Use `invoke_subagent` to spawn parallel agents. Pass multiple entries in the `Subagents` array to run them simultaneously. Wait for all subagents to send completion messages before proceeding to the next step.
+**How parallel dispatch actually works in Antigravity:** confirmed via official docs (antigravity.google/docs/subagents) — there is no "Subagents array" parameter. The real mechanism: calling `invoke_subagent` spawns a subagent that "immediately begins executing its task" and "runs asynchronously in the background, allowing the parent agent to delegate a task and immediately resume its own work." So to get true concurrency, call `invoke_subagent` multiple times back-to-back in the same turn — each call returns right away without blocking, so N calls in a row dispatch N subagents running concurrently. Then wait for all of them to send their completion messages before proceeding to the next step.
+
+**Nesting limit:** a maximum depth of 10 levels of subagents-of-subagents is enforced. Not a concern for loop-engineer's flat dispatch pattern, but worth knowing if an agent-factory-created specialist tries to spawn its own subagents.
 
 **IMPORTANT:** Subagents start with a clean slate — no parent context. Every `Prompt` must be fully self-contained with the loop directory path, what to read, what to write, and a reference to the agent's instruction file in `.agents/`.
 
@@ -127,7 +129,7 @@ Determine researcher count by goal complexity:
 - Medium/multi-domain → 3 researchers
 - Large/multi-system → 4 researchers
 
-Call `invoke_subagent` once with all researchers in the Subagents array (they run in parallel).
+Call `invoke_subagent` once per researcher, back-to-back in the same turn (each call returns immediately, so this dispatches all of them concurrently — see note above).
 Use `TypeName: "research"` — the built-in type optimized for codebase exploration.
 
 Domains to distribute:
@@ -184,7 +186,7 @@ Write `loop-stack/<LOOP_ID>/AGENTS.md` with `# Specialized Agents\n## Status\nNO
 
 Initialize: `turns_used = 0`, `skipped_tasks = []`.
 
-For parallel steps: pass all agents as entries in one `invoke_subagent` call. Wait for all to send completion messages before proceeding.
+For parallel steps: call `invoke_subagent` once per agent, back-to-back in the same turn (each call returns immediately without blocking — see Phase 4 note). Wait for all to send completion messages before proceeding.
 
 ### Iteration steps:
 
@@ -192,7 +194,7 @@ For parallel steps: pass all agents as entries in one `invoke_subagent` call. Wa
 
 2. **Read state** — identify current parallel group (all unchecked [GN] tasks).
 
-3. **Parallel RESEARCHERS** — one per task (2 if batch=1). Single `invoke_subagent` call, `TypeName: "research"`:
+3. **Parallel RESEARCHERS** — one per task (2 if batch=1). Call `invoke_subagent` once per task, back-to-back in the same turn, `TypeName: "research"`:
    ```
    Loop directory: loop-stack/<LOOP_ID>/
    GLOBAL DATA FIRST — read loop-stack/.global/MEMORY.md AND loop-stack/.global/TOOLS.md.
@@ -203,9 +205,9 @@ For parallel steps: pass all agents as entries in one `invoke_subagent` call. Wa
    ```
    Wait for all. Increment turns_used.
 
-4. **Before executors, check AGENTS.md.** For every task in the batch that clearly needs domain expertise beyond a generic executor and has no specialist yet, call `invoke_subagent` with all of them as entries in one call (`TypeName: "self"`, each reads `.agents/agent-factory.md`) to create their agent files and update AGENTS.md — same parallel-first rule as researchers/executors. Wait for all to finish. Skip this for most tasks.
+4. **Before executors, check AGENTS.md.** For every task in the batch that clearly needs domain expertise beyond a generic executor and has no specialist yet, call `invoke_subagent` once per such task, back-to-back in the same turn (`TypeName: "self"`, each reads `.agents/agent-factory.md`) to create their agent files and update AGENTS.md — same parallel-first rule as researchers/executors. Wait for all to finish. Skip this for most tasks.
 
-5. **Parallel EXECUTORS** — one per task. Single `invoke_subagent` call, `TypeName: "self"`:
+5. **Parallel EXECUTORS** — one per task. Call `invoke_subagent` once per task, back-to-back in the same turn, `TypeName: "self"`:
    ```
    Loop directory: loop-stack/<LOOP_ID>/
    GLOBAL DATA FIRST — read loop-stack/.global/MEMORY.md AND loop-stack/.global/TOOLS.md.
@@ -253,7 +255,7 @@ Write `REPORT.md` inside the renamed loop directory and print summary.
 - Phase 0 first — run the check-resume script, never scan `loop-stack/` by hand.
 - **File copy**: try CLI path (`~/.gemini/antigravity-cli/skills/`), then IDE path (`~/.gemini/antigravity/skills/`), then 2.0 path (`~/.gemini/config/skills/`). Never write manually.
 - **Global data first**: every agent reads `.global/MEMORY.md` + `.global/TOOLS.md` before acting.
-- **invoke_subagent**: parallel = multiple Subagents entries in one call. Sequential = separate calls. Wait for completion messages between steps.
+- **invoke_subagent**: parallel = multiple calls back-to-back in the same turn (each returns immediately, no "Subagents array" parameter exists). Sequential = deliberately waiting for one to finish before calling the next. Wait for completion messages between steps.
 - **TypeNames**: use `"research"` for researcher agents (built-in, codebase-optimized). Use `"self"` for all others.
 - **Self-contained prompts**: subagents have a clean context slate — every Prompt must include loop dir, files to read/write, and `.agents/{role}.md` reference.
 - **Researcher before executor**: always. Dynamic count based on goal complexity.

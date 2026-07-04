@@ -230,9 +230,12 @@ HARD RULE — no plan-approval gate: proceed through this entire sequence withou
 ```
 
 > **Requirements:**
-> - Codex CLI v0.128.0+ with `features.multi_agent = true`
+> - Current Codex CLI releases enable subagent workflows by default (confirmed via developers.openai.com/codex/subagents) — no feature flag needed on recent versions. If yours is older and `spawn_agent` isn't available, check for `features.multi_agent = true` in `~/.codex/config.toml` or toggle "Multi-agents" via `/experimental`.
 > - `/goal` is a TUI slash command — run `codex` first, then paste the prompt
 > - Edit `.codex/agents/*.toml` to change models
+> - **Concurrency cap**: `agents.max_threads` (default 6) limits how many `spawn_agent` calls run concurrently. If a batch has more tasks than this cap, extra spawns queue rather than run simultaneously — raise `agents.max_threads` in config if you routinely run 4-researcher batches or more.
+> - **Nesting cap**: `agents.max_depth` (default 1) allows a direct spawned agent to itself spawn one further layer, but no deeper. Loop-engineer's agents are all flat (no agent spawns another), so this default is fine as-is.
+> - Codex only spawns subagents when explicitly asked to — this is baked into the `/goal` prompt's "Spawn all researchers in parallel using spawn_agent" instructions; if Codex doesn't spawn, check that instruction survived verbatim.
 
 ---
 

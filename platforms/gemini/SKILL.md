@@ -227,6 +227,8 @@ Write `REPORT.md` inside the renamed loop directory and print summary.
 - **Global data first**: every agent reads `.global/MEMORY.md` + `.global/TOOLS.md` before acting.
 - **Parallel on v0.36+**: Gemini CLI added true concurrent subagent dispatch in v0.36 (April 2026) — call multiple agent tools in the same turn for any "parallel" step and they run concurrently. Confirm your version with `gemini --version`. Ordinary (non-subagent) tool calls remain sequential regardless of version.
 - **Pre-v0.36 fallback**: no concurrent dispatch exists — invoke each agent, wait, then invoke the next, even for steps marked "parallel" above.
+- **Official caveat on parallel execution** (developers.googleblog.com): avoid parallel executors for tasks with heavy overlapping file edits — concurrent agents editing the same files can conflict or overwrite each other. This is already covered by "stay in your lane, don't touch files other parallel executors are handling," but Gemini's own docs call it out explicitly, so take it seriously when scoping parallel executor tasks.
+- **No subagent nesting, ever**: Gemini CLI subagents cannot call other subagents under any circumstances — even a subagent with wildcard (`*`) tool access can't see or invoke other agents. Not a concern for loop-engineer's flat dispatch, but don't design a specialist that assumes it can delegate further.
 - **Researcher before executor**: always. Dynamic count based on goal complexity.
 - **Agent-factory is on-demand, not a fixed phase step.** Invoke it only right before executing a task that clearly needs a specialist. Most loops never call it.
 - **knowledge-sources.md is a reference file researchers consult on demand**, not a phase step.

@@ -40,18 +40,20 @@ Works for any objective: software development, research papers, data analysis, c
 
 ## Supported platforms
 
+All entries below confirmed against each vendor's own current documentation (fetched directly, not secondhand).
+
 | Platform | Skill | Agent dispatch | Parallelism |
 |---|---|---|---|
-| **Claude Code** | `/loop-engineer` | `Agent` tool | ✅ true parallel |
-| **Cursor** | `/loop-engineer` | `Agent` tool | ✅ true parallel |
-| **Antigravity CLI** (`agy`) | `/loop-engineer` | `invoke_subagent` | ✅ true parallel |
-| **Antigravity IDE** (VS Code / JetBrains) | `/loop-engineer` | `invoke_subagent` | ✅ true parallel |
-| **Antigravity 2.0** (desktop) | `/loop-engineer` | `invoke_subagent` | ✅ true parallel |
-| **Hermes Agent** | `/loop-engineer` | `delegate_task` | ✅ true parallel |
-| **Gemini CLI** | `/loop-engineer` | named agent tools | ✅ true parallel (v0.36+), ⚡ sequential on older versions |
-| **OpenCode** | `/loop-engineer` | `task` tool | ⚡ sequential (subagent dispatch is serialized due to an upstream bug — [issue #14195](https://github.com/anomalyco/opencode/issues/14195)) |
-| **OpenAI Codex CLI** | `/loop-engineer` | `spawn_agent` | ✅ true parallel |
-| **VS Code GitHub Copilot** | attach `loop-engineer.prompt.md` | `readFile` + agent roles | ⚡ sequential (no subagent primitive at all) |
+| **Claude Code** | `/loop-engineer` | `Agent` tool | ✅ true parallel — call it N times in one response |
+| **Cursor** | `/loop-engineer` | `Task` tool | ✅ true parallel — confirmed via cursor.com/docs/subagents: multiple `Task` calls in one message run simultaneously |
+| **Antigravity CLI** (`agy`) | `/loop-engineer` | `invoke_subagent` | ✅ true parallel — confirmed via antigravity.google/docs/subagents: each call returns immediately (async background execution), so calling it N times back-to-back dispatches N concurrent subagents. No "Subagents array" parameter exists. Nesting capped at 10 levels. |
+| **Antigravity IDE** (VS Code / JetBrains) | `/loop-engineer` | `invoke_subagent` | ✅ true parallel (see above) |
+| **Antigravity 2.0** (desktop) | `/loop-engineer` | `invoke_subagent` | ✅ true parallel (see above) |
+| **Hermes Agent** | `/loop-engineer` | `delegate_task(tasks=[...])` | ✅ true parallel — one call, array of task definitions, synchronous (blocks until all return). **Default cap of 3 concurrent** (`delegation.max_concurrent_children`, floor 1, no ceiling) |
+| **Gemini CLI** | `/loop-engineer` | named agent tools (`@agent-name`) | ✅ true parallel (v0.36+, confirmed via developers.googleblog.com) — official caveat: avoid parallel subagents for heavy concurrent code edits (file conflict risk) |
+| **OpenCode** | `/loop-engineer` | `task` tool | ⚡ sequential — still unresolved as of writing. Original bug ([#14195](https://github.com/anomalyco/opencode/issues/14195)) was closed, but sequential dispatch was reported again in a newer issue ([#29638](https://github.com/anomalyco/opencode/issues/29638)) with fix PRs open as of late May 2026; check that issue for current status |
+| **OpenAI Codex CLI** | `/loop-engineer` | `spawn_agent` | ✅ true parallel — enabled by default on current releases (no feature flag needed; older versions may need `features.multi_agent = true`). **Default cap of 6 concurrent** (`agents.max_threads`), nesting capped at depth 1 (`agents.max_depth`) |
+| **VS Code GitHub Copilot** | attach `loop-engineer.prompt.md` | `agent`/`runSubagent` tool | ✅ true parallel — confirmed via code.visualstudio.com/docs/agents/subagents: phrase a batch as "Run these N subagents in parallel" and they run concurrently. Nesting disabled by default (enable via `chat.subagents.allowInvocationsFromSubagents`, max depth 5) |
 
 ---
 

@@ -70,7 +70,7 @@ case "$PLATFORM" in
     ;;
   copilot)
     SKILL_DIR="$HOME/.config/loop-engineer/copilot"
-    AGENTS_DIR=".github/loop-engineer/agents"
+    AGENTS_DIR=".github/agents"
     PROMPT_DIR=".github/prompts"
     ;;
   *)
@@ -197,7 +197,13 @@ if [[ -n "$SKILL_DIR" && -d "$SKILL_DIR" ]]; then
     cp "$SKILL_DIR/knowledge-sources/"*.md "$KNOWLEDGE_DIR/" 2>/dev/null || true
     [[ -f "$SKILL_DIR/knowledge-sources.md" ]] && cp "$SKILL_DIR/knowledge-sources.md" ".codex/knowledge-sources.md"
   elif [[ "$PLATFORM" == "copilot" ]]; then
-    cp "$SKILL_DIR/agents/"*.md "$AGENTS_DIR/" 2>/dev/null || true
+    # VS Code treats any .md file in .github/agents/ as a custom agent, so only
+    # *.agent.md files go there — knowledge-sources.md is NOT an agent and must
+    # live elsewhere or VS Code will try (and fail) to parse it as one.
+    cp "$SKILL_DIR/agents/"*.agent.md "$AGENTS_DIR/" 2>/dev/null || true
+    mkdir -p ".github/loop-engineer-knowledge/knowledge-sources"
+    cp "$SKILL_DIR/agents/knowledge-sources.md" ".github/loop-engineer-knowledge/knowledge-sources.md" 2>/dev/null || true
+    cp "$SKILL_DIR/agents/knowledge-sources/"*.md ".github/loop-engineer-knowledge/knowledge-sources/" 2>/dev/null || true
     # Copy prompt file (the SKILL.md becomes the .prompt.md for the user)
     [[ -f "$SKILL_DIR/SKILL.md" ]] && cp "$SKILL_DIR/SKILL.md" "$PROMPT_DIR/loop-engineer.prompt.md"
     # Write workspace instructions file if missing
@@ -248,9 +254,27 @@ temperature: 0.1
 HARD RULE: Never write application code. Never mark done unless verification passed.
 VERIFIER
     ;;
-  antigravity|hermes|copilot)
+  antigravity|hermes)
     cat > "$AGENTS_DIR/verifier.md" <<VERIFIER
 # Verifier Agent
+You are the verifier agent. Never write application code.
+
+1. Read loop-stack/.global/MEMORY.md FIRST.
+2. Read [LOOP_DIR]/MEMORY.md, STATUS.md, PLAN.md.
+3. Run: $STOP_CONDITION
+4. PASSES → State VERIFIED_PASS, mark [x], update Task Progress. All done → ALL DONE.
+5. FAILS → State FAILED, write exact error to Last Executor Result.
+HARD RULE: Never write application code. Never mark done unless verification passed.
+VERIFIER
+    ;;
+  copilot)
+    cat > "$AGENTS_DIR/loop-engineer-verifier.agent.md" <<VERIFIER
+---
+name: loop-engineer-verifier
+description: Runs the stop condition. Marks tasks done or failed. Never writes application code.
+tools: ['read', 'edit', 'terminal']
+user-invocable: false
+---
 You are the verifier agent. Never write application code.
 
 1. Read loop-stack/.global/MEMORY.md FIRST.

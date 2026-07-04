@@ -247,7 +247,7 @@ Write `REPORT.md` inside the renamed loop directory and print summary to user.
 - Phase 0 first — run the check-resume script, never scan `loop-stack/` by hand.
 - **File copy**: `cp ~/.config/opencode/skills/loop-engineer/agents/*.md .opencode/agents/` — never manual.
 - **Global data first**: every agent reads `.global/MEMORY.md` + `.global/TOOLS.md` before acting.
-- **Sequential execution**: OpenCode's `task` tool runs one agent at a time — invoke each, wait, then proceed. This is an upstream bug in OpenCode's subagent dispatch ([issue #14195](https://github.com/anomalyco/opencode/issues/14195)), not a permanent platform limitation — revisit this file if that gets fixed upstream.
+- **Sequential execution**: OpenCode's `task` tool runs one agent at a time — invoke each, wait, then proceed. This is an upstream bug, not a permanent platform limitation. Status is genuinely in flux: the original report ([#14195](https://github.com/anomalyco/opencode/issues/14195)) was closed as fixed, but sequential dispatch was reported again in a follow-up issue ([#29638](https://github.com/anomalyco/opencode/issues/29638)) with competing fix PRs (#29819, #29848) opened in late May 2026 — check that issue for current merge status before assuming this is still broken, and revisit this file if it's confirmed fixed.
 - **Researcher before executor**: always. Dynamic count based on goal complexity.
 - **Agent-factory is on-demand, not a fixed phase step.** Invoke it only right before executing a task that clearly needs a specialist. Most loops never call it.
 - **knowledge-sources.md is a reference file researchers consult on demand**, not a phase step.

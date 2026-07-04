@@ -56,7 +56,7 @@ switch ($Platform) {
   }
   "copilot" {
     $SkillDir  = "$env:USERPROFILE\.config\loop-engineer\copilot"
-    $AgentsDir = ".github\loop-engineer\agents"
+    $AgentsDir = ".github\agents"
     $PromptDir = ".github\prompts"
   }
   default {
@@ -187,7 +187,13 @@ if ($SkillDir -and (Test-Path $SkillDir)) {
     $ksIndex = "$SkillDir\knowledge-sources.md"
     if (Test-Path $ksIndex) { Copy-Item $ksIndex ".codex\knowledge-sources.md" }
   } elseif ($Platform -eq "copilot") {
-    try { Copy-Item "$SkillDir\agents\*.md" $AgentsDir -ErrorAction SilentlyContinue } catch {}
+    # VS Code treats any .md file in .github/agents/ as a custom agent, so only
+    # *.agent.md files go there - knowledge-sources.md is NOT an agent and must
+    # live elsewhere or VS Code will try (and fail) to parse it as one.
+    try { Copy-Item "$SkillDir\agents\*.agent.md" $AgentsDir -ErrorAction SilentlyContinue } catch {}
+    New-Item -ItemType Directory -Force ".github\loop-engineer-knowledge\knowledge-sources" | Out-Null
+    try { Copy-Item "$SkillDir\agents\knowledge-sources.md" ".github\loop-engineer-knowledge\knowledge-sources.md" -ErrorAction SilentlyContinue } catch {}
+    try { Copy-Item "$SkillDir\agents\knowledge-sources\*.md" ".github\loop-engineer-knowledge\knowledge-sources\" -ErrorAction SilentlyContinue } catch {}
     $promptSrc = "$SkillDir\SKILL.md"
     if (Test-Path $promptSrc) { Copy-Item $promptSrc "$PromptDir\loop-engineer.prompt.md" -Force }
     if (-not (Test-Path ".github\copilot-instructions.md")) {
@@ -238,7 +244,7 @@ temperature: 0.1
 HARD RULE: Never write application code. Never mark done unless verification passed.
 "@ | Set-Content "$AgentsDir\verifier.md" -Encoding utf8
   }
-  { $_ -in "antigravity","hermes","copilot" } {
+  { $_ -in "antigravity","hermes" } {
     @"
 # Verifier Agent
 You are the verifier agent. Never write application code.
@@ -250,6 +256,24 @@ You are the verifier agent. Never write application code.
 5. FAILS ->State FAILED, write exact error to Last Executor Result.
 HARD RULE: Never write application code. Never mark done unless verification passed.
 "@ | Set-Content "$AgentsDir\verifier.md" -Encoding utf8
+  }
+  "copilot" {
+    @"
+---
+name: loop-engineer-verifier
+description: Runs the stop condition. Marks tasks done or failed. Never writes application code.
+tools: ['read', 'edit', 'terminal']
+user-invocable: false
+---
+You are the verifier agent. Never write application code.
+
+1. Read loop-stack/.global/MEMORY.md FIRST.
+2. Read [LOOP_DIR]/MEMORY.md, STATUS.md, PLAN.md.
+3. Run: $Stop
+4. PASSES ->State VERIFIED_PASS, mark [x], update Task Progress. All done ->ALL DONE.
+5. FAILS ->State FAILED, write exact error to Last Executor Result.
+HARD RULE: Never write application code. Never mark done unless verification passed.
+"@ | Set-Content "$AgentsDir\loop-engineer-verifier.agent.md" -Encoding utf8
   }
   "opencode" {
     @"

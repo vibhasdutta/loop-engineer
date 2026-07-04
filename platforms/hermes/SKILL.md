@@ -102,12 +102,12 @@ The script creates `loop-stack/<LOOP_ID>/`, `.hermes/agents/` with all agent .md
 
 ## Phase 4 — Startup Sequence
 
-Use `delegate_task` to spawn isolated child agents in parallel. Each child agent should:
-- Read `.hermes/agents/{role}.md` for its full instructions
+Use `delegate_task` to spawn isolated child agents. Its real signature (confirmed via hermes-agent.nousresearch.com docs) takes a single `tasks` array parameter — `delegate_task(tasks=[{goal, context, toolsets}, ...])` — one call dispatches every entry in the array concurrently, up to the concurrency cap (see Rules). It is **synchronous**: the call blocks until all tasks in that array return, then you get every result back at once. Each child agent should:
+- Read `.hermes/agents/{role}.md` for its full instructions (pass this as part of `context`)
 - Write its results back to the loop-stack state files
 - Update STATUS.md when done
 
-For parallel steps: call `delegate_task` for all agents in the same turn, then wait for all to write to STATUS.md before proceeding.
+For parallel steps: put every agent's task definition in one `delegate_task(tasks=[...])` call, then process all results once it returns.
 
 ### Step 1 — Parallel RESEARCHERS (dynamic count)
 
@@ -116,9 +116,9 @@ Determine researcher count by goal complexity:
 - Medium/multi-domain → 3 researchers
 - Large/multi-system → 4 researchers
 
-**Dispatch all researchers simultaneously** using `delegate_task` (multiple calls in one turn):
+**Dispatch all researchers in one `delegate_task(tasks=[...])` call** — one array entry per researcher:
 
-Each researcher task instruction:
+Each researcher's `context` should include:
 ```
 Loop directory: loop-stack/<LOOP_ID>/
 Focus: {ASSIGNED_DOMAIN} — {specific files and concerns}
@@ -171,7 +171,7 @@ Write `loop-stack/<LOOP_ID>/AGENTS.md` with `# Specialized Agents\n## Status\nNO
 
 Initialize: `turns_used = 0`, `skipped_tasks = []`.
 
-For each dispatch step: use `delegate_task` for all agents in the same step simultaneously, then wait for all to update STATUS.md before proceeding.
+For each dispatch step: put every agent's task definition in one `delegate_task(tasks=[...])` call — this blocks until all of them return, then you have every result at once.
 
 ### Iteration steps:
 
@@ -179,7 +179,7 @@ For each dispatch step: use `delegate_task` for all agents in the same step simu
 
 2. **Read state** — identify current parallel group (all unchecked [GN] tasks).
 
-3. **Parallel RESEARCHERS** — call `delegate_task` once per task (2 if batch=1), all in same turn:
+3. **Parallel RESEARCHERS** — one `delegate_task(tasks=[...])` call, one array entry per task (2 entries if batch=1):
    ```
    Loop directory: loop-stack/<LOOP_ID>/
    GLOBAL DATA FIRST — read loop-stack/.global/MEMORY.md AND loop-stack/.global/TOOLS.md.
@@ -188,11 +188,11 @@ For each dispatch step: use `delegate_task` for all agents in the same step simu
    Update STATUS.md "Last Researcher Result".
    Read .hermes/agents/researcher.md for full instructions.
    ```
-   Wait for all. Increment turns_used.
+   Wait for the call to return. Increment turns_used.
 
-4. **Before executors, check AGENTS.md.** For every task in the batch that clearly needs domain expertise beyond a generic executor and has no specialist yet, call `delegate_task` for all of them simultaneously in the same turn (reads `.hermes/agents/agent-factory.md`, creates 1 agent file per task, updates AGENTS.md) — same parallel-first rule as researchers/executors. Wait for all to finish. Skip this for most tasks.
+4. **Before executors, check AGENTS.md.** For every task in the batch that clearly needs domain expertise beyond a generic executor and has no specialist yet, put all of them in one `delegate_task(tasks=[...])` call (reads `.hermes/agents/agent-factory.md`, creates 1 agent file per task, updates AGENTS.md) — same parallel-first rule as researchers/executors. Skip this for most tasks.
 
-5. **Parallel EXECUTORS** — call `delegate_task` once per task, all in same turn:
+5. **Parallel EXECUTORS** — one `delegate_task(tasks=[...])` call, one array entry per task:
    ```
    Loop directory: loop-stack/<LOOP_ID>/
    GLOBAL DATA FIRST — read loop-stack/.global/MEMORY.md AND loop-stack/.global/TOOLS.md.
@@ -203,26 +203,26 @@ For each dispatch step: use `delegate_task` for all agents in the same step simu
    Goal output (code, documents, files) goes to the project directory, NOT inside loop-stack/. loop-stack/ is state-only.
    Read .hermes/agents/executor.md for full instructions.
    ```
-   Wait for all. Increment turns_used.
+   Wait for the call to return. Increment turns_used.
 
-6. **Parallel MEMORY-KEEPER checkpoints** — one per task (local only). Wait for all.
+6. **MEMORY-KEEPER checkpoints** — one `delegate_task(tasks=[...])` call, one entry per task (local only).
 
-7. **Parallel EVALUATORS** — one per task. Wait for all.
+7. **EVALUATORS** — one `delegate_task(tasks=[...])` call, one entry per task.
 
-8. **Parallel VERIFIERS** — one per task. Wait for all.
+8. **VERIFIERS** — one `delegate_task(tasks=[...])` call, one entry per task.
 
 9. **Process verifier results**:
    - PASS → auditor
    - FAIL < 3 → retry from step 3
    - FAIL ≥ 3 → auto-skip
 
-10. **Parallel AUDITORS** (passing tasks only) — one per passing task. Wait for all.
+10. **AUDITORS** (passing tasks only) — one `delegate_task(tasks=[...])` call, one entry per passing task.
 
 11. **Process audit results**:
     - CLEAN/WARN → proceed
     - BLOCK → auto-fix (dispatch executor once with BLOCK context, re-dispatch verifier). Still BLOCK → auto-skip.
 
-12. **MEMORY-KEEPER final** — single `delegate_task`, local + global write. Wait for completion.
+12. **MEMORY-KEEPER final** — single `delegate_task` call, local + global write.
 
 13. **Advance** — mark [x], git commit if enabled. Find next group.
     None → ALL DONE → rename `loop-stack/<LOOP_ID>/` → `loop-stack/<LOOP_ID>_DONE/` (or `_EXTENDED_DONE/` if this was an extended loop) → Phase 6.
@@ -240,7 +240,8 @@ Write `REPORT.md` inside the renamed loop directory and print summary.
 - Phase 0 first — run the check-resume script, never scan `loop-stack/` by hand.
 - **File copy**: `~/.hermes/skills/loop-engineer/agents/*.md` → `.hermes/agents/`. Never write manually.
 - **Global data first**: every agent reads `.global/MEMORY.md` + `.global/TOOLS.md` before acting.
-- **Parallel first**: Hermes supports true parallel via `delegate_task` — dispatch all agents for the same step simultaneously.
+- **Parallel first**: `delegate_task(tasks=[...])` takes one array of task definitions per call and dispatches every entry concurrently, up to the concurrency cap. It is **synchronous** — the call blocks until every task in the array returns, and if the parent turn is interrupted mid-call, all active children are cancelled and their work discarded. Default cap: **3 concurrent tasks**, configurable via `delegation.max_concurrent_children` in config.yaml (floor of 1, no ceiling).
+- **Nested delegation is restricted**: leaf subagents (the default role) cannot call `delegate_task` themselves — only `role="orchestrator"` subagents retain it, and only when `delegation.max_spawn_depth` is raised above its default of 1. Loop-engineer's agents are all leaf subagents; this doesn't affect the design, just don't expect an executor to be able to further delegate sub-tasks.
 - **Researcher before executor**: always. Dynamic count based on goal complexity. Executor reads AGENTS.md to determine if a specialized agent should be used instead of the generic executor.
 - **Agent-factory is on-demand, not a fixed phase step.** Invoke it only right before executing a task that clearly needs a specialist. Most loops never call it.
 - **knowledge-sources.md is a reference file researchers consult on demand**, not a phase step.

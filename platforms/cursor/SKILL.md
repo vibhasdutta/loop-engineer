@@ -96,6 +96,8 @@ The script creates `loop-stack/<LOOP_ID>/`, `.cursor/agents/` with all agent .md
 
 **FULLY AUTONOMOUS from this point. Never pause or ask the user anything.**
 
+**How parallel dispatch actually works in Cursor:** confirmed via official docs (cursor.com/docs/subagents) — subagents are dispatched through the **`Task` tool**. Sending multiple `Task` tool calls in a single message/response runs them simultaneously: *"Agent sends multiple Task tool calls in a single message, so subagents run simultaneously."* Calling `Task` once, waiting, then calling it again runs sequentially — the concurrency comes specifically from batching multiple calls into one message, exactly like the steps below describe.
+
 ### Step 1 — Parallel RESEARCHERS (dynamic count)
 
 Determine researcher count by goal complexity:
@@ -103,7 +105,7 @@ Determine researcher count by goal complexity:
 - Medium/multi-domain → 3
 - Large/multi-system → 4
 
-**Spawn all simultaneously** (call Agent tool N times in one response).
+**Spawn all simultaneously** (call the `Task` tool N times in one response — that's what makes them concurrent, per Cursor's docs).
 
 Divide domains across researchers:
 - **Context & Prior Work**: source structure, patterns, package.json/pyproject.toml/go.mod, tests
@@ -226,7 +228,9 @@ Write `REPORT.md` inside the renamed loop directory and print summary.
 - Phase 0 first — run the check-resume script, never scan `loop-stack/` by hand.
 - **File copy**: shell commands only. Never write agent files manually.
 - **Global data first**: every agent reads `.global/MEMORY.md` + `.global/TOOLS.md`.
-- **Parallel first**: same group = spawn simultaneously. Different group = sequential.
+- **Parallel first**: same group = spawn simultaneously. Different group = sequential. Confirmed native mechanism (cursor.com/docs/subagents): multiple `Task` tool calls sent in one message run concurrently. One call, wait, another call runs sequentially — batching into a single message/response is what makes it parallel.
+- **Custom subagent files**: Cursor reads `.cursor/agents/*.md` (project) or `~/.cursor/agents/*.md` (user). It also recognizes `.claude/agents/` and `.codex/agents/` for cross-tool compatibility, with `.cursor/` taking precedence on name conflicts — loop-engineer installs to `.cursor/agents/` directly, so this doesn't change anything, just avoids confusion if you see those other dirs referenced elsewhere.
+- **Nesting**: the main agent and its direct subagents can launch further subagents; a subagent launched by another subagent cannot launch its own (effectively 2 levels deep).
 - **Researcher before executor**: always. Dynamic count.
 - **Agent-factory is on-demand, not a fixed phase step.** Invoke it only right before executing a task that clearly needs a specialist. Most loops never call it.
 - **knowledge-sources.md is a reference file researchers consult on demand**, not a phase step.
