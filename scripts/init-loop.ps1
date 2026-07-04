@@ -166,6 +166,18 @@ Shared across all loops in this project.
 "@ | Set-Content "$GlobalDir\MEMORY.md" -Encoding utf8
 }
 
+# ── Remove legacy agent files ─────────────────────────────────────────────────
+# $AgentsDir is a platform-shared directory (e.g. .claude\agents\), so we only
+# delete filenames loop-engineer is known to have shipped in the past, never
+# the whole directory. Copy-Item below only adds/overwrites - it never removes
+# a file the skill stopped shipping, so anything renamed/retired must be
+# listed here or it lingers on every project forever.
+$LegacyAgentNames = @("watcher")
+foreach ($name in $LegacyAgentNames) {
+  Remove-Item -Force "$AgentsDir\$name.md" -ErrorAction SilentlyContinue
+  Remove-Item -Force "$AgentsDir\$name.toml" -ErrorAction SilentlyContinue
+}
+
 # ── Copy agent files ──────────────────────────────────────────────────────────
 
 if ($SkillDir -and (Test-Path $SkillDir)) {

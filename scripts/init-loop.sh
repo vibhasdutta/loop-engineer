@@ -178,6 +178,17 @@ Shared across all loops in this project.
 (none yet)
 GMEM
 
+# ── Remove legacy agent files ─────────────────────────────────────────────────
+# $AGENTS_DIR is a platform-shared directory (e.g. .claude/agents/), so we only
+# delete filenames loop-engineer is known to have shipped in the past, never
+# the whole directory. `cp` below only adds/overwrites — it never removes a
+# file the skill stopped shipping, so anything renamed/retired must be listed
+# here or it lingers on every project forever.
+LEGACY_AGENT_NAMES=(watcher)
+for name in "${LEGACY_AGENT_NAMES[@]}"; do
+  rm -f "$AGENTS_DIR/$name.md" "$AGENTS_DIR/$name.toml"
+done
+
 # ── Copy agent files ──────────────────────────────────────────────────────────
 
 if [[ -n "$SKILL_DIR" && -d "$SKILL_DIR" ]]; then

@@ -67,9 +67,18 @@ function Copy-KnowledgeSources($platformAgentsDir, $destAgentsDir) {
     }
 }
 
+# These dirs are fully namespaced under loop-engineer's own skill install -
+# nothing else ever writes here, so wipe before recopying. This is what
+# actually removes agents the skill no longer ships (e.g. the old watcher),
+# instead of leaving stale copies behind forever via plain Copy-Item.
+function Reset-AgentsDir($dir) {
+    Remove-Item -Recurse -Force "$dir\agents" -ErrorAction SilentlyContinue
+    New-Item -ItemType Directory -Force "$dir\agents" | Out-Null
+}
+
 function Install-Claude {
     $dir = "$env:USERPROFILE\.claude\skills\loop-engineer"
-    New-Item -ItemType Directory -Force "$dir\agents" | Out-Null
+    Reset-AgentsDir $dir
     Copy-Item "$RepoDir\platforms\claude\SKILL.md" "$dir\SKILL.md" -Force
     Copy-Item "$RepoDir\platforms\claude\agents\*.md" "$dir\agents\" -Force
     Copy-KnowledgeSources "$RepoDir\platforms\claude\agents" "$dir\agents"
@@ -80,7 +89,7 @@ function Install-Claude {
 
 function Install-Cursor {
     $dir = "$env:USERPROFILE\.cursor\skills\loop-engineer"
-    New-Item -ItemType Directory -Force "$dir\agents" | Out-Null
+    Reset-AgentsDir $dir
     Copy-Item "$RepoDir\platforms\cursor\SKILL.md" "$dir\SKILL.md" -Force
     Copy-Item "$RepoDir\platforms\cursor\agents\*.md" "$dir\agents\" -Force
     Copy-KnowledgeSources "$RepoDir\platforms\cursor\agents" "$dir\agents"
@@ -91,7 +100,7 @@ function Install-Cursor {
 
 function Install-Gemini {
     $dir = "$env:USERPROFILE\.gemini\skills\loop-engineer"
-    New-Item -ItemType Directory -Force "$dir\agents" | Out-Null
+    Reset-AgentsDir $dir
     Copy-Item "$RepoDir\platforms\gemini\SKILL.md" "$dir\SKILL.md" -Force
     Copy-Item "$RepoDir\platforms\gemini\GEMINI.md" "$dir\GEMINI.md" -Force
     Copy-Item "$RepoDir\platforms\gemini\gemini-extension.json" "$dir\gemini-extension.json" -Force
@@ -108,7 +117,7 @@ function Install-Gemini {
 }
 
 function Install-AntigravitySurface($dest) {
-    New-Item -ItemType Directory -Force "$dest\agents" | Out-Null
+    Reset-AgentsDir $dest
     Copy-Item "$RepoDir\platforms\antigravity\SKILL.md" "$dest\SKILL.md" -Force
     Copy-Item "$RepoDir\platforms\antigravity\AGENTS.md" "$dest\AGENTS.md" -Force
     Copy-Item "$RepoDir\platforms\antigravity\agents\*.md" "$dest\agents\" -Force
@@ -134,7 +143,7 @@ function Install-Antigravity {
 
 function Install-OpenCode {
     $dir = "$env:USERPROFILE\.config\opencode\skills\loop-engineer"
-    New-Item -ItemType Directory -Force "$dir\agents" | Out-Null
+    Reset-AgentsDir $dir
     Copy-Item "$RepoDir\platforms\opencode\SKILL.md" "$dir\SKILL.md" -Force
     Copy-Item "$RepoDir\platforms\opencode\AGENTS.md" "$dir\AGENTS.md" -Force
     Copy-Item "$RepoDir\platforms\opencode\agents\*.md" "$dir\agents\" -Force
@@ -151,7 +160,8 @@ function Install-OpenCode {
 
 function Install-Codex {
     $dir = "$env:USERPROFILE\.codex\skills\loop-engineer"
-    New-Item -ItemType Directory -Force "$dir\agents" | Out-Null
+    Reset-AgentsDir $dir
+    Remove-Item -Recurse -Force "$dir\knowledge-sources" -ErrorAction SilentlyContinue
     New-Item -ItemType Directory -Force "$dir\knowledge-sources" | Out-Null
     Copy-Item "$RepoDir\platforms\codex\SKILL.md" "$dir\SKILL.md" -Force
     Copy-Item "$RepoDir\platforms\codex\agents\*.toml" "$dir\agents\" -Force
@@ -164,7 +174,7 @@ function Install-Codex {
 
 function Install-Hermes {
     $dir = "$env:USERPROFILE\.hermes\skills\loop-engineer"
-    New-Item -ItemType Directory -Force "$dir\agents" | Out-Null
+    Reset-AgentsDir $dir
     Copy-Item "$RepoDir\platforms\hermes\SKILL.md" "$dir\SKILL.md" -Force
     Copy-Item "$RepoDir\platforms\hermes\HERMES.md" "$dir\HERMES.md" -Force
     Copy-Item "$RepoDir\platforms\hermes\agents\*.md" "$dir\agents\" -Force
@@ -177,7 +187,7 @@ function Install-Hermes {
 
 function Install-Copilot {
     $dir = "$env:USERPROFILE\.config\loop-engineer\copilot"
-    New-Item -ItemType Directory -Force "$dir\agents" | Out-Null
+    Reset-AgentsDir $dir
     Copy-Item "$RepoDir\platforms\copilot\SKILL.md" "$dir\SKILL.md" -Force
     Copy-Item "$RepoDir\platforms\copilot\copilot-instructions.md" "$dir\copilot-instructions.md" -Force
     Copy-Item "$RepoDir\platforms\copilot\agents\*.md" "$dir\agents\" -Force

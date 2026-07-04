@@ -50,9 +50,19 @@ _copy_knowledge_sources() {
   cp "$platform_agents_dir/knowledge-sources/"*.md "$dest_agents_dir/knowledge-sources/" 2>/dev/null || true
 }
 
+# These dirs are fully namespaced under loop-engineer's own skill install —
+# nothing else ever writes here, so wipe before recopying. This is what
+# actually removes agents the skill no longer ships (e.g. the old watcher),
+# instead of leaving stale copies behind forever via plain `cp`.
+_reset_agents_dir() {
+  local dir="$1"
+  rm -rf "$dir/agents"
+  mkdir -p "$dir/agents"
+}
+
 install_claude() {
   local dir="${HOME}/.claude/skills/loop-engineer"
-  mkdir -p "$dir/agents"
+  _reset_agents_dir "$dir"
   cp "$REPO_DIR/platforms/claude/SKILL.md" "$dir/SKILL.md"
   cp "$REPO_DIR/platforms/claude/agents/"*.md "$dir/agents/"
   _copy_knowledge_sources "$REPO_DIR/platforms/claude/agents" "$dir/agents"
@@ -63,7 +73,7 @@ install_claude() {
 
 install_cursor() {
   local dir="${HOME}/.cursor/skills/loop-engineer"
-  mkdir -p "$dir/agents"
+  _reset_agents_dir "$dir"
   cp "$REPO_DIR/platforms/cursor/SKILL.md" "$dir/SKILL.md"
   cp "$REPO_DIR/platforms/cursor/agents/"*.md "$dir/agents/"
   _copy_knowledge_sources "$REPO_DIR/platforms/cursor/agents" "$dir/agents"
@@ -74,7 +84,7 @@ install_cursor() {
 
 install_gemini() {
   local dir="${HOME}/.gemini/skills/loop-engineer"
-  mkdir -p "$dir/agents"
+  _reset_agents_dir "$dir"
   cp "$REPO_DIR/platforms/gemini/SKILL.md" "$dir/SKILL.md"
   cp "$REPO_DIR/platforms/gemini/GEMINI.md" "$dir/GEMINI.md"
   cp "$REPO_DIR/platforms/gemini/gemini-extension.json" "$dir/gemini-extension.json"
@@ -91,7 +101,7 @@ install_gemini() {
 
 _install_antigravity_surface() {
   local dest="$1"
-  mkdir -p "$dest/agents"
+  _reset_agents_dir "$dest"
   cp "$REPO_DIR/platforms/antigravity/SKILL.md" "$dest/SKILL.md"
   cp "$REPO_DIR/platforms/antigravity/AGENTS.md" "$dest/AGENTS.md"
   cp "$REPO_DIR/platforms/antigravity/agents/"*.md "$dest/agents/"
@@ -117,7 +127,7 @@ install_antigravity() {
 
 install_opencode() {
   local dir="${HOME}/.config/opencode/skills/loop-engineer"
-  mkdir -p "$dir/agents"
+  _reset_agents_dir "$dir"
   cp "$REPO_DIR/platforms/opencode/SKILL.md" "$dir/SKILL.md"
   cp "$REPO_DIR/platforms/opencode/AGENTS.md" "$dir/AGENTS.md"
   cp "$REPO_DIR/platforms/opencode/agents/"*.md "$dir/agents/"
@@ -133,7 +143,9 @@ install_opencode() {
 
 install_codex() {
   local dir="${HOME}/.codex/skills/loop-engineer"
-  mkdir -p "$dir/agents" "$dir/knowledge-sources"
+  _reset_agents_dir "$dir"
+  rm -rf "$dir/knowledge-sources"
+  mkdir -p "$dir/knowledge-sources"
   cp "$REPO_DIR/platforms/codex/SKILL.md" "$dir/SKILL.md"
   cp "$REPO_DIR/platforms/codex/agents/"*.toml "$dir/agents/"
   cp "$REPO_DIR/platforms/codex/knowledge-sources/"*.md "$dir/knowledge-sources/" 2>/dev/null || true
@@ -145,7 +157,7 @@ install_codex() {
 
 install_hermes() {
   local dir="${HOME}/.hermes/skills/loop-engineer"
-  mkdir -p "$dir/agents"
+  _reset_agents_dir "$dir"
   cp "$REPO_DIR/platforms/hermes/SKILL.md" "$dir/SKILL.md"
   cp "$REPO_DIR/platforms/hermes/HERMES.md" "$dir/HERMES.md"
   cp "$REPO_DIR/platforms/hermes/agents/"*.md "$dir/agents/"
@@ -158,7 +170,7 @@ install_hermes() {
 
 install_copilot() {
   local dir="${HOME}/.config/loop-engineer/copilot"
-  mkdir -p "$dir/agents"
+  _reset_agents_dir "$dir"
   cp "$REPO_DIR/platforms/copilot/SKILL.md" "$dir/SKILL.md"
   cp "$REPO_DIR/platforms/copilot/copilot-instructions.md" "$dir/copilot-instructions.md"
   cp "$REPO_DIR/platforms/copilot/agents/"*.md "$dir/agents/"
