@@ -134,8 +134,6 @@ IN_PROGRESS
 (none)
 ## Last Audit Result
 (none)
-## Last Watcher Report
-(none)
 ## Active Heartbeats
 (none)
 ## Blocked Reason

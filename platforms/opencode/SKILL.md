@@ -16,17 +16,45 @@ You are running a loop engineering wizard. Follow these phases in order.
 
 ## Phase 0 — Resume Check
 
-Scan for `loop-stack/*/STATUS.md`. **Skip any directory ending with `_DONE`.**
+Run the resume-check script FIRST — unconditionally. It is the source of truth; do not scan `loop-stack/` yourself.
 
-**None found:**
-- Check `loop-stack/*_DONE/` — if continuation intent ("continue", "proceed", "finish", "resume", "pick up", "fix what", "audit findings", "where we left") AND `_DONE` exists → read its REPORT.md + MEMORY.md, tell user "Found completed loop {id} — starting follow-on using those findings", then Phase 1 with prior findings pre-loaded into new loop's RESEARCH.md "## Prior Loop Findings".
-- Otherwise → Phase 1.
-**One found:** Read it. If continuation intent → auto-resume to Phase 5 without asking. Otherwise show State/Current Task/Progress, ask: Resume or Fresh?
-- Resume → skip to Phase 5.
-- Fresh → delete `loop-stack/<loop-id>/` only (keep `.opencode/agents/`), continue to Phase 1.
-**Multiple found:** list all, ask which to resume or 'fresh'. If continuation intent, auto-resume most recent active loop.
+**Bash:**
+```bash
+CHECK="$HOME/.config/opencode/skills/loop-engineer/scripts/check-resume.sh"
+[ ! -f "$CHECK" ] && CHECK="$HOME/.claude/skills/loop-engineer/scripts/check-resume.sh"
+bash "$CHECK"
+```
 
-**RESUME RULES — always apply when going to Phase 5 via resume:**
+**PowerShell:**
+```powershell
+$check = "$env:USERPROFILE\.config\opencode\skills\loop-engineer\scripts\check-resume.ps1"
+if (-not (Test-Path $check)) { $check = "$env:USERPROFILE\.claude\skills\loop-engineer\scripts\check-resume.ps1" }
+& $check
+```
+
+Read its output literally, then branch:
+
+**`ACTIVE <id> | State: ... | Task: ... | Progress: ...`:**
+- Continuation intent ("continue", "proceed", "finish", "resume", "pick up", "fix what", "audit findings", "where we left") → auto-resume to Phase 5 without asking.
+- Otherwise show State/Current Task/Progress, ask: Resume or Fresh?
+  - Resume → skip to Phase 5.
+  - Fresh → delete `loop-stack/<id>/` only (keep `.opencode/agents/`), continue to Phase 1.
+- Multiple `ACTIVE` lines → list all, ask which to resume or 'fresh'. Continuation intent → auto-resume most recently modified.
+
+**`DONE <id>` or `EXTENDED_DONE <id>` (no `ACTIVE` line) + continuation intent:**
+→ **EXTEND SEQUENCE** — reopen in place, don't restart:
+1. Rename `loop-stack/<id>_DONE/` (or `_EXTENDED_DONE/`) → `loop-stack/<id>_EXTENDED/`.
+2. Reuse existing PLAN.md, RESEARCH.md, MEMORY.md, TOOLS.md, AGENTS.md, `agents/` as-is — do not re-run researchers, resource-scout, or agent-factory.
+3. Ask ONE question: "What's the next task for this loop?" Append under `## Extension {N} Goal` in PLAN.md.
+4. Invoke `planner` once against the new goal (existing RESEARCH.md/TOOLS.md as context) to append new `[GN]` tasks.
+5. Reset STATUS.md: State = IN_PROGRESS, Current Task = first new task, Task Progress updated.
+6. Go directly to Phase 5 (skip Phase 1–4).
+
+On completion of a loop directory containing `_EXTENDED`: Phase 6 renames it to `_EXTENDED_DONE` instead of plain `_DONE`.
+
+**`NONE`, or `DONE`/`EXTENDED_DONE` with no continuation intent:** → Phase 1 (fresh loop).
+
+**RESUME/EXTEND RULES — always apply when going to Phase 5 this way:**
 Skip Phase 2, 3, and 4 entirely. Read STATUS.md + PLAN.md to find where the loop stopped. Reuse existing RESEARCH.md, MEMORY.md, TOOLS.md, AGENTS.md — do not re-run startup agents.
 
 > **To update loop-engineer:** re-run `install.sh --update` / `install.ps1 -Update -OpenCode`. Updates are never applied automatically mid-loop.
@@ -105,16 +133,7 @@ prompt: |
   Update STATUS.md "Last Researcher Result".
 ```
 
-After all researchers complete, invoke the `watcher` agent using the `task` tool:
-```
-agent: watcher
-prompt: |
-  Loop directory: loop-stack/<LOOP_ID>/
-  Agents watched: researchers (just completed)
-  Check loop-stack/<LOOP_ID>/STATUS.md ## Active Heartbeats for signs of incomplete work.
-  If any researcher shows incomplete heartbeat, report STUCK in ## Last Watcher Report.
-```
-Wait for watcher to complete.
+**Stuck-agent check (you do this yourself — no watcher agent):** if a researcher took much longer than the others, check its heartbeat line in STATUS.md `## Active Heartbeats`. If stale, treat it STUCK, note it, and proceed with the findings you have.
 
 ### Step 2 — RESOURCE SCOUT
 
@@ -141,24 +160,7 @@ prompt: |
   Replace "## Tasks" in PLAN.md. Update STATUS.md.
 ```
 
-### Step 4 — AGENT FACTORY (conditional)
-
-**Skip this step** if BOTH are true: planner created ≤ 2 tasks AND goal domain is generic (no clear need for specialists).
-If skipping: write `loop-stack/<LOOP_ID>/AGENTS.md` with `# Specialized Agents\n## Status\nNONE CREATED` then auto-continue into outer loop.
-
-**Run this step** if EITHER: planner created 3+ tasks, OR goal domain clearly benefits from specialists (security, ML/data science, content production, medical, finance, system design, etc.).
-
-Invoke using the `task` tool:
-```
-agent: agent-factory
-prompt: |
-  Loop directory: loop-stack/<LOOP_ID>/
-  Read loop-stack/<LOOP_ID>/PLAN.md (goal + tasks), RESEARCH.md, and TOOLS.md.
-  Analyze the goal domain. Determine what specialized agents would improve execution quality.
-  Create 1–3 purpose-built agent files in loop-stack/<LOOP_ID>/agents/ tailored to this goal's domain.
-  Write loop-stack/<LOOP_ID>/AGENTS.md listing each created agent and which tasks it handles.
-  If generic agents are sufficient, write AGENTS.md with "NONE CREATED".
-```
+Write `loop-stack/<LOOP_ID>/AGENTS.md` with `# Specialized Agents\n## Status\nNONE CREATED YET`. (Agent-factory is on-demand, not a fixed step — see Rules.)
 
 Auto-continue into outer loop immediately.
 
@@ -191,7 +193,9 @@ All agents are invoked via the `task` tool, one at a time, waiting for each to c
    ```
    Increment turns_used.
 
-4. **EXECUTORS** — invoke one per task sequentially:
+4. **Before executors, check AGENTS.md.** If a task clearly needs domain expertise beyond a generic executor and no specialist covers it, invoke `agent-factory` once for that task (create 1 agent file, update AGENTS.md). Skip this for most tasks.
+
+5. **EXECUTORS** — invoke one per task sequentially:
    ```
    agent: executor
    prompt: |
@@ -205,50 +209,54 @@ All agents are invoked via the `task` tool, one at a time, waiting for each to c
    ```
    Increment turns_used.
 
-5. **MEMORY-KEEPER checkpoints** — invoke one per task sequentially. Local only.
+6. **MEMORY-KEEPER checkpoints** — invoke one per task sequentially. Local only.
 
-6. **EVALUATORS** — invoke one per task sequentially.
+7. **EVALUATORS** — invoke one per task sequentially.
 
-7. **VERIFIERS** — invoke one per task sequentially.
+8. **VERIFIERS** — invoke one per task sequentially.
 
-8. **Process verifier results**:
+9. **Process verifier results**:
    - VERIFIED_PASS → auditor
    - FAILED, attempts < 3 → increment attempts in STATUS.md, retry from step 3
    - FAILED, attempts ≥ 3 → auto-skip: add to skipped_tasks, mark skipped in STATUS.md
 
-9. **AUDITORS** — invoke one per passing task sequentially.
+10. **AUDITORS** — invoke one per passing task sequentially.
 
-10. **Process audit results**:
+11. **Process audit results**:
     - CLEAN/WARN → proceed
     - BLOCK → auto-fix: invoke executor once more with BLOCK context + re-verify. Still BLOCK → auto-skip.
 
-11. **MEMORY-KEEPER final** — single invoke, local + global write.
+12. **MEMORY-KEEPER final** — single invoke, local + global write.
 
-12. **Advance** — mark [x] in PLAN.md, increment done_tasks, reset attempts.
+13. **Advance** — mark [x] in PLAN.md, increment done_tasks, reset attempts.
     - If `USE_GIT`: commit PLAN.md + STATUS.md.
     - Find next unchecked group.
-    - None → ALL DONE → rename `loop-stack/<LOOP_ID>/` → `loop-stack/<LOOP_ID>_DONE/` → Phase 6.
+    - None → ALL DONE → rename `loop-stack/<LOOP_ID>/` → `loop-stack/<LOOP_ID>_DONE/` (or `_EXTENDED_DONE/` if this was an extended loop) → Phase 6.
     - Else → update STATUS.md → continue loop.
 
 ---
 
 ## Phase 6 — Completion Report
 
-Write `loop-stack/<LOOP_ID>_DONE/REPORT.md` and print summary to user.
+Write `REPORT.md` inside the renamed loop directory and print summary to user.
 
 ---
 
 ## Rules
 
-- Phase 0 first. Skip `_DONE` folders.
+- Phase 0 first — run the check-resume script, never scan `loop-stack/` by hand.
 - **File copy**: `cp ~/.config/opencode/skills/loop-engineer/agents/*.md .opencode/agents/` — never manual.
 - **Global data first**: every agent reads `.global/MEMORY.md` + `.global/TOOLS.md` before acting.
 - **Sequential execution**: OpenCode's `task` tool runs one agent at a time — invoke each, wait, then proceed.
 - **Researcher before executor**: always. Dynamic count based on goal complexity.
+- **Agent-factory is on-demand, not a fixed phase step.** Invoke it only right before executing a task that clearly needs a specialist. Most loops never call it.
+- **knowledge-sources.md is a reference file researchers consult on demand**, not a phase step.
+- **No watcher agent.** Check heartbeats yourself if an agent is slow; never invoke a dedicated watcher.
 - **Memory-keeper twice per batch**: checkpoint (local) after executors, consolidation (local+global) after audit.
 - **Executors append to MEMORY.md directly** during work.
-- **Planner**: once at startup after researchers + resource-scout. Tasks MUST use [G1]/[G2] group tags.
+- **Planner**: once at startup after researchers + resource-scout, and again (lightweight) for extended-loop follow-on tasks. Tasks MUST use [G1]/[G2] group tags.
 - **Fully autonomous**: no pauses. 3 fails → auto-skip. BLOCK → auto-fix once → skip.
 - **doom_loop**: if OpenCode triggers doom_loop detection (3 identical tool calls), the executor agent has `doom_loop: allow` — the loop continues.
-- On completion: rename to `<LOOP_ID>_DONE/`.
+- **HARD RULE — no plan-approval gate**: after Phase 1's two questions, proceed through Phase 2 onward without presenting a plan for approval or waiting for a "click proceed" confirmation.
+- On completion: rename to `<LOOP_ID>_DONE/` or `<LOOP_ID>_EXTENDED_DONE/`.
 - **AGENTS.md**: copy `platforms/opencode/AGENTS.md` to the project root if not present — it gives OpenCode context about the loop.

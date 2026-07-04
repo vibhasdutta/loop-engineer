@@ -53,8 +53,10 @@ if ($Update) {
 
 function Copy-Scripts($dir) {
     New-Item -ItemType Directory -Force "$dir\scripts" | Out-Null
-    try { Copy-Item "$RepoDir\scripts\init-loop.sh"  "$dir\scripts\" -Force -ErrorAction SilentlyContinue } catch {}
-    try { Copy-Item "$RepoDir\scripts\init-loop.ps1" "$dir\scripts\" -Force -ErrorAction SilentlyContinue } catch {}
+    try { Copy-Item "$RepoDir\scripts\init-loop.sh"       "$dir\scripts\" -Force -ErrorAction SilentlyContinue } catch {}
+    try { Copy-Item "$RepoDir\scripts\init-loop.ps1"      "$dir\scripts\" -Force -ErrorAction SilentlyContinue } catch {}
+    try { Copy-Item "$RepoDir\scripts\check-resume.sh"    "$dir\scripts\" -Force -ErrorAction SilentlyContinue } catch {}
+    try { Copy-Item "$RepoDir\scripts\check-resume.ps1"   "$dir\scripts\" -Force -ErrorAction SilentlyContinue } catch {}
 }
 
 function Copy-KnowledgeSources($platformAgentsDir, $destAgentsDir) {

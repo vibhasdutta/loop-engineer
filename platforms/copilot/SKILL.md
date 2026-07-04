@@ -19,17 +19,34 @@ You are running a loop engineering wizard. Follow these phases in order.
 
 ## Phase 0 — Resume Check
 
-Scan for `loop-stack/*/STATUS.md`. **Skip any directory ending with `_DONE`.**
+Run the resume-check script FIRST — unconditionally, via `runInTerminal`. It is the source of truth; do not scan `loop-stack/` yourself.
 
-**None found:**
-- Check `loop-stack/*_DONE/` — if continuation intent ("continue", "proceed", "finish", "resume", "pick up", "fix what", "audit findings", "where we left") AND `_DONE` exists → read its REPORT.md + MEMORY.md, tell user "Found completed loop {id} — starting follow-on using those findings", then Phase 1 with prior findings pre-loaded into new loop's RESEARCH.md "## Prior Loop Findings".
-- Otherwise → Phase 1.
-**One found:** Read it. If continuation intent → auto-resume to Phase 5 without asking. Otherwise show State/Current Task/Progress, ask: Resume or Fresh?
-- Resume → skip to Phase 5.
-- Fresh → delete `loop-stack/<loop-id>/` only (keep `.github/loop-engineer/agents/`), continue to Phase 1.
-**Multiple found:** list all, ask which to resume or 'fresh'. If continuation intent, auto-resume most recent active loop.
+**Bash:** `bash ~/.config/loop-engineer/copilot/scripts/check-resume.sh`
+**PowerShell:** `& "$env:USERPROFILE\.config\loop-engineer\copilot\scripts\check-resume.ps1"`
 
-**RESUME RULES — always apply when going to Phase 5 via resume:**
+Read its output literally, then branch:
+
+**`ACTIVE <id> | State: ... | Task: ... | Progress: ...`:**
+- Continuation intent ("continue", "proceed", "finish", "resume", "pick up", "fix what", "audit findings", "where we left") → auto-resume to Phase 5 without asking.
+- Otherwise show State/Current Task/Progress, ask: Resume or Fresh?
+  - Resume → skip to Phase 5.
+  - Fresh → delete `loop-stack/<id>/` only (keep `.github/loop-engineer/agents/`), continue to Phase 1.
+- Multiple `ACTIVE` lines → list all, ask which to resume or 'fresh'. Continuation intent → auto-resume most recently modified.
+
+**`DONE <id>` or `EXTENDED_DONE <id>` (no `ACTIVE` line) + continuation intent:**
+→ **EXTEND SEQUENCE** — reopen in place, don't restart:
+1. Rename `loop-stack/<id>_DONE/` (or `_EXTENDED_DONE/`) → `loop-stack/<id>_EXTENDED/`.
+2. Reuse existing PLAN.md, RESEARCH.md, MEMORY.md, TOOLS.md, AGENTS.md, `agents/` as-is — do not re-run researchers, resource-scout, or agent-factory.
+3. Ask ONE question: "What's the next task for this loop?" Append under `## Extension {N} Goal` in PLAN.md.
+4. Act as `planner` once against the new goal (existing RESEARCH.md/TOOLS.md as context) to append new `[GN]` tasks.
+5. Reset STATUS.md: State = IN_PROGRESS, Current Task = first new task, Task Progress updated.
+6. Go directly to Phase 5 (skip Phase 1–4).
+
+On completion of a loop directory containing `_EXTENDED`: Phase 6 renames it to `_EXTENDED_DONE` instead of plain `_DONE`.
+
+**`NONE`, or `DONE`/`EXTENDED_DONE` with no continuation intent:** → Phase 1 (fresh loop).
+
+**RESUME/EXTEND RULES — always apply when going to Phase 5 this way:**
 Skip Phase 2, 3, and 4 entirely. Read STATUS.md + PLAN.md to find where the loop stopped. Reuse existing RESEARCH.md, MEMORY.md, TOOLS.md, AGENTS.md — do not re-run startup agents.
 
 > **To update loop-engineer:** re-run `install.sh --update --copilot` / `install.ps1 -Update -Copilot`. Updates are never applied automatically mid-loop.
@@ -113,9 +130,7 @@ Update STATUS.md "Last Researcher Result".
 ```
 Complete each researcher fully before the next.
 
-After researchers complete, act as the watcher:
-1. Read `.github/loop-engineer/agents/watcher.md` via `readFile`
-2. Check `loop-stack/<LOOP_ID>/STATUS.md ## Active Heartbeats` for researcher completions.
+**Stuck-agent check (no watcher role needed):** if a researcher step took much longer than expected, check `loop-stack/<LOOP_ID>/STATUS.md ## Active Heartbeats` for its last line yourself. If stale, treat it STUCK, note it, and proceed with the findings you have.
 
 ### Step 2 — RESOURCE SCOUT
 
@@ -140,21 +155,7 @@ Different group = sequential dependency.
 Replace "## Tasks" in PLAN.md. Update STATUS.md.
 ```
 
-### Step 4 — AGENT FACTORY (conditional)
-
-**Skip if** BOTH: planner created ≤ 2 tasks AND goal domain is generic.
-If skipping: write `loop-stack/<LOOP_ID>/AGENTS.md` with `# Specialized Agents\n## Status\nNONE CREATED` then auto-continue into Phase 5.
-
-**Run if** EITHER: planner created 3+ tasks OR goal clearly benefits from specialists.
-
-1. Read `.github/loop-engineer/agents/agent-factory.md` via `readFile`
-2. Act as agent-factory with:
-```
-Loop directory: loop-stack/<LOOP_ID>/
-Read PLAN.md (goal + tasks), RESEARCH.md, and TOOLS.md.
-Create 1–3 specialist agent files in loop-stack/<LOOP_ID>/agents/ if beneficial.
-Write AGENTS.md manifest.
-```
+Write `loop-stack/<LOOP_ID>/AGENTS.md` with `# Specialized Agents\n## Status\nNONE CREATED YET`. (Agent-factory is on-demand, not a fixed step — see Rules. It's invoked later, per-task, in Phase 5 if a task clearly needs a specialist.)
 
 Auto-continue into Phase 5.
 
@@ -188,7 +189,9 @@ All agent roles run sequentially — read the agent file, act in that role, comp
    ```
    Increment `turns_used`.
 
-4. **EXECUTORS** — for each task in the group, act as executor sequentially:
+4. **Before executors, check AGENTS.md.** For each task in the group that clearly needs domain expertise beyond a generic executor and has no specialist yet, act as agent-factory for that task (read `.github/loop-engineer/agents/agent-factory.md`, create 1 agent file, update AGENTS.md). Skip this for most tasks.
+
+5. **EXECUTORS** — for each task in the group, act as executor sequentially:
    1. Read `.github/loop-engineer/agents/executor.md` via `readFile`
    2. Act with:
    ```
@@ -203,63 +206,67 @@ All agent roles run sequentially — read the agent file, act in that role, comp
    ```
    Increment `turns_used`.
 
-5. **MEMORY-KEEPER checkpoints** — after executors, for each completed task:
+6. **MEMORY-KEEPER checkpoints** — after executors, for each completed task:
    1. Read `.github/loop-engineer/agents/memory-keeper.md` via `readFile`
    2. Act with: `Loop directory: loop-stack/<LOOP_ID>/. Checkpoint after executor for {this_task}. Local write only.`
 
-6. **EVALUATORS** — for each task, act as evaluator:
+7. **EVALUATORS** — for each task, act as evaluator:
    1. Read `.github/loop-engineer/agents/evaluator.md` via `readFile`
    2. Act with: `Loop directory: loop-stack/<LOOP_ID>/. Evaluate task: {this_task}.`
 
-7. **VERIFIERS** — for each task, act as verifier:
+8. **VERIFIERS** — for each task, act as verifier:
    1. Read `.github/loop-engineer/agents/verifier.md` via `readFile`
    2. Act with: `Loop directory: loop-stack/<LOOP_ID>/. Verify task: {this_task}.`
 
-8. **Process verifier results**:
+9. **Process verifier results**:
    - VERIFIED_PASS → auditor
    - FAILED, attempts < 3 → increment attempts in STATUS.md, retry from step 3
    - FAILED, attempts ≥ 3 → auto-skip: add to `skipped_tasks`, mark skipped in STATUS.md
 
-9. **AUDITORS** — for each verified-pass task:
-   1. Read `.github/loop-engineer/agents/auditor.md` via `readFile`
-   2. Act with:
-   ```
-   Loop directory: loop-stack/<LOOP_ID>/
-   GLOBAL DATA FIRST — read loop-stack/.global/MEMORY.md AND loop-stack/.global/TOOLS.md.
-   Read RESEARCH.md "## Quality Standards" for {this_task}.
-   Task verified: {this_task}. Review for security, tech debt, pattern violations.
-   ```
+10. **AUDITORS** — for each verified-pass task:
+    1. Read `.github/loop-engineer/agents/auditor.md` via `readFile`
+    2. Act with:
+    ```
+    Loop directory: loop-stack/<LOOP_ID>/
+    GLOBAL DATA FIRST — read loop-stack/.global/MEMORY.md AND loop-stack/.global/TOOLS.md.
+    Read RESEARCH.md "## Quality Standards" for {this_task}.
+    Task verified: {this_task}. Review for security, tech debt, pattern violations.
+    ```
 
-10. **Process audit results**:
+11. **Process audit results**:
     - CLEAN/WARN → proceed
     - BLOCK → auto-fix: one executor retry + re-verify. Still BLOCK → auto-skip.
 
-11. **MEMORY-KEEPER final** — single run, local + global write:
+12. **MEMORY-KEEPER final** — single run, local + global write:
     1. Read `.github/loop-engineer/agents/memory-keeper.md` via `readFile`
     2. Act with: `Loop directory: loop-stack/<LOOP_ID>/. Final consolidation. Write local + global MEMORY.md.`
 
-12. **Advance** — mark [x] in PLAN.md, git commit if enabled. Find next unchecked group.
-    None left → ALL DONE → rename `loop-stack/<LOOP_ID>/` → `loop-stack/<LOOP_ID>_DONE/` → Phase 6.
+13. **Advance** — mark [x] in PLAN.md, git commit if enabled. Find next unchecked group.
+    None left → ALL DONE → rename `loop-stack/<LOOP_ID>/` → `loop-stack/<LOOP_ID>_DONE/` (or `_EXTENDED_DONE/` if this was an extended loop) → Phase 6.
 
 ---
 
 ## Phase 6 — Completion Report
 
-Write `loop-stack/<LOOP_ID>_DONE/REPORT.md` and print summary.
+Write `REPORT.md` inside the renamed loop directory and print summary.
 
 ---
 
 ## Rules
 
-- Phase 0 first. Skip `_DONE` folders (but check them for follow-on context when continuation intent detected).
+- Phase 0 first — run the check-resume script via `runInTerminal`, never scan `loop-stack/` by hand.
 - **Agent invocation**: read the agent's `.md` file via `readFile` before acting in that role. Agent files are in `.github/loop-engineer/agents/`.
 - **Agent mode required**: standard Copilot Chat lacks file and terminal tools — switch to Agent mode before starting.
 - **Global data first**: every agent role reads `loop-stack/.global/MEMORY.md` + `loop-stack/.global/TOOLS.md` before acting.
-- **Sequential execution**: complete each step fully before starting the next. No parallel dispatch.
+- **Sequential execution**: complete each step fully before starting the next. No parallel dispatch — this platform has no subagent primitive.
 - **Researcher before executor**: always. 2 researchers minimum; more for complex goals.
+- **Agent-factory is on-demand, not a fixed phase step.** Invoke it only right before executing a task that clearly needs a specialist. Most loops never call it.
+- **knowledge-sources.md is a reference file researchers consult on demand**, not a phase step.
+- **No watcher agent.** Check heartbeats yourself if a step is slow; never simulate a dedicated watcher role.
 - **Memory-keeper twice per batch**: checkpoint (local) after executors, consolidation (local+global) after audit.
 - **Executors append to MEMORY.md directly** during work.
-- **Planner**: once at startup. Tasks MUST use [G1]/[G2] group tags.
+- **Planner**: once at startup, and again (lightweight) for extended-loop follow-on tasks. Tasks MUST use [G1]/[G2] group tags.
 - **Fully autonomous**: no pauses. 3 fails → auto-skip. BLOCK → auto-fix once → skip.
-- On completion: rename to `<LOOP_ID>_DONE/`. Phase 0 skips these.
+- **HARD RULE — no plan-approval gate**: after Phase 1's two questions, proceed through Phase 2 onward without presenting a plan for approval or waiting for a "click proceed" confirmation.
+- On completion: rename to `<LOOP_ID>_DONE/` or `<LOOP_ID>_EXTENDED_DONE/`. Phase 0's check-resume script reads these directly.
 - **copilot-instructions.md**: copy `platforms/copilot/copilot-instructions.md` to `.github/copilot-instructions.md` in your project if not present — it tells Copilot how to activate the skill.

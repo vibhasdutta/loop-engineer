@@ -12,6 +12,7 @@
 | `/loop-engineer` | [OpenCode](https://opencode.ai) | any |
 | `/loop-engineer` | [Hermes Agent](https://hermes-agent.nousresearch.com) | any |
 | `/loop-engineer` | [Codex CLI](https://github.com/openai/codex) | 0.128.0+ |
+| attach `loop-engineer.prompt.md` | [VS Code GitHub Copilot](https://code.visualstudio.com/docs/copilot/overview) | 1.99+ (Agent mode) |
 
 ---
 
@@ -224,9 +225,44 @@ In a Codex session, type `/loop-engineer`. The skill scaffolds state files and p
 
 ---
 
+## VS Code GitHub Copilot
+
+Installs to `~/.config/loop-engineer/copilot/` (a user-level cache — VS Code Copilot has no native global skills directory). Requires VS Code 1.99+ and Copilot Chat's **Agent mode**.
+
+### macOS / Linux
+
+```bash
+git clone https://github.com/vibhasdutta/loop-engineer.git
+cd loop-engineer && bash install.sh --copilot
+```
+
+### Windows (PowerShell)
+
+```powershell
+git clone https://github.com/vibhasdutta/loop-engineer.git
+cd loop-engineer
+.\install.ps1 -Copilot
+```
+
+### Per-project setup
+
+Run the init script from your project root (the install step prints the exact command):
+
+```bash
+bash ~/.config/loop-engineer/copilot/scripts/init-loop.sh --loop-id <id> --goal "<goal>" --stop "all tasks in loop-stack/<id>/PLAN.md checked" --platform copilot
+```
+
+This writes `.github/prompts/loop-engineer.prompt.md`, `.github/loop-engineer/agents/`, and `.github/copilot-instructions.md` (if not already present) into your project.
+
+### Verify
+
+Open Copilot Chat, switch to **Agent mode**, attach `.github/prompts/loop-engineer.prompt.md` via `#loop-engineer.prompt`, and describe a goal.
+
+---
+
 ## Install all platforms at once
 
-Installs Claude Code, Cursor, Gemini CLI, Codex CLI, OpenCode, and Hermes Agent.
+Installs Claude Code, Cursor, Gemini CLI, Codex CLI, OpenCode, Hermes Agent, and VS Code Copilot.
 
 **macOS / Linux:**
 ```bash

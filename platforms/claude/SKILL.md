@@ -17,28 +17,46 @@ You are running a loop engineering wizard. Follow these phases in order.
 
 ## Phase 0 — Resume Check
 
-Before anything else, scan for any `loop-stack/*/STATUS.md` files in the current directory.
-**Skip any directory whose name ends with `_DONE` — those loops are already complete.**
+Run the resume-check script FIRST — unconditionally, before any other action. It is the source of truth for what exists in `loop-stack/`; do not re-derive its output by scanning files yourself.
 
-**If none found** (no active loops):
-- Check `loop-stack/*_DONE/` for completed loops. If continuation intent in user message ("continue", "proceed", "keep going", "finish", "resume", "pick up", "fix what", "audit findings", "where we left") AND a `_DONE` directory exists → read its REPORT.md and MEMORY.md. Tell user: "Found completed loop {id} — starting a follow-on loop using those findings as context." Proceed to Phase 1. In Phase 2+3, after writing RESEARCH.md, append a "## Prior Loop Findings" section with the done loop's REPORT.md summary and MEMORY.md learnings.
-- Otherwise → continue to Phase 1.
+**Bash (macOS/Linux):**
+```bash
+bash ~/.claude/skills/loop-engineer/scripts/check-resume.sh
+```
 
-**If one found:** Read it.
-- **Continuation intent:** If the user's message contains "continue", "proceed", "keep going", "finish", "resume", "pick up", "fix what", "do the fixes", "audit findings", or "where we left" → auto-resume to Phase 5 immediately without asking.
+**PowerShell (Windows):**
+```powershell
+& "$env:USERPROFILE\.claude\skills\loop-engineer\scripts\check-resume.ps1"
+```
+
+Read its output literally, line by line, then branch:
+
+**Line `ACTIVE <id> | State: ... | Task: ... | Progress: ...`:**
+- Continuation intent in the user's message ("continue", "proceed", "keep going", "finish", "resume", "pick up", "fix what", "do the fixes", "audit findings", "where we left") → auto-resume immediately: skip directly to Phase 5 using `loop-stack/<id>/`. Do not ask.
 - Otherwise tell the user:
-  > "Found an existing loop: loop-stack/{loop-id}/
-  > State: {State}  |  Current task: {Current Task}  |  Progress: {Task Progress}
+  > "Found an existing loop: loop-stack/{id}/
+  > State: {State}  |  Current task: {Task}  |  Progress: {Progress}
   >
   > Resume this loop or start fresh?"
-  - **Resume** → skip to Phase 5 (Outer Loop).
-  - **Fresh** → delete only `loop-stack/<loop-id>/` directory (do NOT delete `.claude/agents/`), continue to Phase 1.
+  - **Resume** → skip to Phase 5.
+  - **Fresh** → delete only `loop-stack/<id>/` (do NOT delete `.claude/agents/`), continue to Phase 1.
+- Multiple `ACTIVE` lines → list all, ask which to resume or 'fresh'. Continuation intent → auto-resume the most recently modified one.
 
-**If multiple found:** List them all and ask which to resume or type 'fresh'. If continuation intent, auto-resume the most recent active loop.
+**Line `DONE <id>` or `EXTENDED_DONE <id>` (and no `ACTIVE` line for that id), with continuation intent detected:**
+→ **EXTEND SEQUENCE** — the loop is not restarted, it is reopened in place:
+1. Rename `loop-stack/<id>_DONE/` (or `<id>_EXTENDED_DONE/`) → `loop-stack/<id>_EXTENDED/`.
+2. Existing PLAN.md, RESEARCH.md, MEMORY.md, TOOLS.md, AGENTS.md, and `agents/` are reused exactly as they are — do NOT re-run researchers, resource-scout, or agent-factory from scratch.
+3. Ask ONE question: "What's the next task for this loop?" Append the answer under a new `## Extension {N} Goal` heading in PLAN.md (N = count of prior extensions + 1).
+4. Run the planner once against this new goal, using the existing RESEARCH.md/TOOLS.md as context, to append new tasks to "## Tasks" with `[GN]` group tags continuing from the highest existing group number.
+5. Reset STATUS.md: State = IN_PROGRESS, Current Task = first new task, Task Progress updated to include the new tasks.
+6. Go directly to Phase 5 (skip Phase 1, 2, 3, and 4 entirely).
 
-**RESUME RULES — always apply when skipping to Phase 5:**
-- Skip Phase 2, 3, and 4 entirely — do NOT re-run them.
-- Do NOT re-create state files, re-copy agent files, or re-run the startup sequence.
+On completion of a loop whose directory contains `_EXTENDED` (not a fresh loop): Phase 6 renames it to `loop-stack/<id>_EXTENDED_DONE/` instead of plain `_DONE`.
+
+**Output `NONE`, or a `DONE`/`EXTENDED_DONE` line with no continuation intent detected:** → continue to Phase 1 (fresh loop, normal LOOP_ID generation).
+
+**RESUME/EXTEND RULES — always apply when skipping to Phase 5:**
+- Skip Phase 2, 3, and 4 entirely — do NOT re-create state files, re-copy agent files, or re-run the startup sequence.
 - Read STATUS.md → Current Task, Task Progress, Last Results per agent.
 - Read PLAN.md → all pending (unchecked) tasks.
 - Existing RESEARCH.md, MEMORY.md, TOOLS.md, AGENTS.md are valid — reuse without re-running agents.
@@ -134,15 +152,7 @@ Update STATUS.md "Last Researcher Result".
 Follow .claude/agents/researcher.md.
 ```
 
-**Also spawn the watcher simultaneously with researchers** (add one more Agent call in the same response):
-
-```
-Loop directory: loop-stack/<LOOP_ID>/
-Agents in this batch: [list the researcher agents you just spawned and their focus areas]
-Watch loop-stack/<LOOP_ID>/STATUS.md under "## Active Heartbeats" for updates from these agents.
-Report to loop-stack/<LOOP_ID>/STATUS.md under "## Last Watcher Report".
-Follow .claude/agents/watcher.md.
-```
+**Stuck-agent check (you do this yourself — no subagent):** After spawning, if you are waiting significantly longer than the other agents in the batch for one researcher to return, check `loop-stack/<LOOP_ID>/STATUS.md` under `## Active Heartbeats` for that agent's last line. If it hasn't advanced past an intermediate step, treat it as STUCK: proceed without it, note `{agent}: STUCK — no output` in STATUS.md, and continue to Step 2 with whatever findings did come back.
 
 Wait for ALL researchers to finish before Step 2.
 
@@ -175,22 +185,7 @@ Update STATUS.md: Current Task = first task, Task Progress = 0 / N.
 Follow .claude/agents/planner.md.
 ```
 
-### Step 4 — AGENT FACTORY (conditional)
-
-**Skip this step** if BOTH are true: planner created ≤ 2 tasks AND goal domain is generic (no clear need for specialists — e.g. simple script, config edit, single-file change).
-If skipping: write `loop-stack/<LOOP_ID>/AGENTS.md` with `# Specialized Agents\n## Status\nNONE CREATED` then go directly to Phase 5.
-
-**Run this step** if EITHER: planner created 3+ tasks, OR goal domain clearly benefits from specialists (security, ML/data science, content production, medical, finance, system design, etc.).
-
-```
-Loop directory: loop-stack/<LOOP_ID>/
-Read loop-stack/<LOOP_ID>/PLAN.md (goal + tasks), RESEARCH.md, and TOOLS.md.
-Analyze the goal domain and determine what specialized agents (beyond the core team) would improve execution quality.
-Create 1–3 purpose-built agent files in loop-stack/<LOOP_ID>/agents/ tailored to this goal's domain and tasks.
-Write loop-stack/<LOOP_ID>/AGENTS.md listing each created agent and which tasks it handles.
-If the generic agents are sufficient, write AGENTS.md with "NONE CREATED" and skip creating files.
-Follow .claude/agents/agent-factory.md.
-```
+Before continuing to Phase 5, write `loop-stack/<LOOP_ID>/AGENTS.md` with `# Specialized Agents\n## Status\nNONE CREATED YET`. (Agent-factory is not a fixed startup step — see "Agent-factory is an on-demand tool" in Rules below. It runs only when a task actually needs a specialist.)
 
 Auto-continue into the outer loop immediately — no user confirmation needed.
 
@@ -240,6 +235,16 @@ Follow .claude/agents/researcher.md.
 ```
 
 Wait for ALL researchers to finish. Increment `turns_used`.
+
+**Before spawning executors, check AGENTS.md for each task in the batch.** For every task where no specialist covers it AND the task clearly needs deep domain-specific judgment a generic executor would approach too broadly (security, ML/data science, content production, medical, finance, system design, etc.) — spawn agent-factory for all such tasks simultaneously, in the same response (same parallel-first rule as researchers/executors — don't do this one task at a time if several qualify):
+```
+Loop directory: loop-stack/<LOOP_ID>/
+Read PLAN.md (goal + this task), RESEARCH.md, and TOOLS.md.
+Create 1 purpose-built agent file in loop-stack/<LOOP_ID>/agents/ for this task's domain.
+Update loop-stack/<LOOP_ID>/AGENTS.md listing the new agent and which task(s) it handles.
+Follow .claude/agents/agent-factory.md.
+```
+Wait for all to finish before proceeding. Skip this entirely when the generic executor is already sufficient — most tasks don't need it.
 
 ### Step 4 — Parallel EXECUTORS (one per task in batch)
 
@@ -342,27 +347,31 @@ Follow .claude/agents/memory-keeper.md.
 - Mark each passed task [x] in PLAN.md, increment `done_tasks`, reset attempts.
 - If `USE_GIT`: commit PLAN.md + STATUS.md.
 - Find next unchecked group.
-- If none → ALL DONE → rename `loop-stack/<LOOP_ID>/` → `loop-stack/<LOOP_ID>_DONE/` → Phase 6.
+- If none → ALL DONE → rename `loop-stack/<LOOP_ID>/` → `loop-stack/<LOOP_ID>_DONE/` (or `_EXTENDED_DONE/` if this loop directory already contained `_EXTENDED` — see Phase 0) → Phase 6.
 - Else → update STATUS.md → continue loop.
 
 ---
 
 ## Phase 6 — Completion Report
 
-Write `loop-stack/<LOOP_ID>_DONE/REPORT.md` and print summary to user.
+Write `REPORT.md` inside the renamed loop directory (`<LOOP_ID>_DONE/` or `<LOOP_ID>_EXTENDED_DONE/`) and print summary to user.
 
 ---
 
 ## Rules
 
-- Phase 0 always first. Skip `_DONE` folders.
+- Phase 0 always first — run the check-resume script, never scan `loop-stack/` by hand.
 - **File copy**: ALWAYS use shell commands to copy agent files. Never write them manually.
 - **Global data first**: Every spawn reads `loop-stack/.global/MEMORY.md` AND `loop-stack/.global/TOOLS.md` before acting.
 - **Parallel first**: Spawn multiple agents simultaneously wherever possible. Same group = parallel. Different group = sequential.
 - **Researcher before executor**: Always. Prevents hallucination. 2–4 researchers for startup, 1+ per task during loop.
 - **Researcher propagates new resources**: If a researcher discovers a new skill, MCP, dataset, API, or tool, it appends it to TOOLS.md immediately so executors can use it.
+- **Agent-factory is an on-demand tool, not a fixed phase step.** It does not run automatically at startup. Invoke it only when a specific task is about to be executed and clearly needs domain expertise a generic executor lacks — check AGENTS.md immediately before spawning executors for a batch, and create a specialist then if needed. Most loops never call it.
+- **knowledge-sources.md is a reference file, not a phase step.** The researcher consults it only when a task genuinely needs external sources it doesn't already know how to find — never as a mandatory step.
+- **No watcher agent.** Stuck-agent detection is inline: if a spawned agent takes much longer than its peers, check its heartbeat in STATUS.md yourself and proceed without it if stale. Never spawn a dedicated agent just to watch other agents.
 - **Memory-keeper runs twice per task batch**: checkpoint after executors (local), consolidation after audit (local + global).
 - **Each executor appends discoveries to MEMORY.md directly** — continuous memory, don't wait for memory-keeper.
-- **Planner**: runs once at startup after researchers + resource-scout. Creates parallel-group-tagged task list.
+- **Planner**: runs once at startup after researchers + resource-scout, and again (lightweight) whenever an extended loop adds new tasks. Creates parallel-group-tagged task list.
 - **Fully autonomous**: Never pause. 3 failures → auto-skip. Audit BLOCK → auto-fix once → skip.
-- On completion: rename directory to `<LOOP_ID>_DONE/`. Phase 0 skips these.
+- **HARD RULE — no plan-approval gate**: Once Phase 1's two questions are answered, proceed through Phase 2 onward without presenting a plan for approval or waiting for the user to confirm/click proceed. This loop is fully autonomous — do not stop to ask "should I proceed?" at any point after Phase 1.
+- On completion: rename directory to `<LOOP_ID>_DONE/`, or `<LOOP_ID>_EXTENDED_DONE/` if it was an extended loop. Phase 0's check-resume script reads these directly.

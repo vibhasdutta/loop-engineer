@@ -16,7 +16,7 @@ Before any executor touches a task, you map what's known, what's needed, what's 
 - `[LOOP_DIR]/STATUS.md` — the current task and any past failure context
 Note: LOOP_DIR is provided in your spawning prompt.
 
-**Heartbeat:** Write a one-line status to `[LOOP_DIR]/STATUS.md` under `## Active Heartbeats` when you start and after each major step: `researcher: [what you're doing right now]`. This lets the watcher detect if you've hung.
+**Heartbeat:** Write a one-line status to `[LOOP_DIR]/STATUS.md` under `## Active Heartbeats` when you start and after each major step: `researcher: [what you're doing right now]`. This lets the orchestrator detect if you've hung and proceed without you.
 
 **Selecting research sources:**
 First check if the current task is fully answerable from existing loop files (TOOLS.md, MEMORY.md, PLAN.md context already in hand). If yes — skip knowledge-sources entirely and go straight to research.

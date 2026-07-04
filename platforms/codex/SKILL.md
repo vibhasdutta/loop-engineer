@@ -15,17 +15,34 @@ You are running a loop engineering wizard for OpenAI Codex. Follow these phases 
 
 ## Phase 0 — Resume Check
 
-Scan for `loop-stack/*/STATUS.md`. **Skip any directory ending with `_DONE`.**
+Run the resume-check script FIRST — unconditionally. It is the source of truth; do not scan `loop-stack/` yourself.
 
-**None found:**
-- Check `loop-stack/*_DONE/` — if continuation intent ("continue", "proceed", "finish", "resume", "pick up", "fix what", "audit findings", "where we left") AND `_DONE` exists → read its REPORT.md + MEMORY.md, tell user "Found completed loop {id} — starting follow-on using those findings", then Phase 1 with prior findings pre-loaded into new loop's RESEARCH.md "## Prior Loop Findings".
-- Otherwise → Phase 1.
-**One found:** Read it. If continuation intent → auto-resume to Phase 5 without asking, output `/goal` using existing files. Otherwise show State/Current Task/Progress, ask: Resume or Fresh?
-- Resume → skip to Phase 5, output `/goal` using existing files.
-- Fresh → delete `loop-stack/<loop-id>/` only (keep `.codex/agents/`), continue to Phase 1.
-**Multiple found:** list all, ask which to resume or 'fresh'. If continuation intent, auto-resume most recent active loop.
+**PowerShell:** `& "$env:USERPROFILE\.codex\skills\loop-engineer\scripts\check-resume.ps1"`
+**Bash:** `bash ~/.codex/skills/loop-engineer/scripts/check-resume.sh`
 
-**RESUME RULES — always apply when going to Phase 5 via resume:**
+Read its output literally, then branch:
+
+**`ACTIVE <id> | State: ... | Task: ... | Progress: ...`:**
+- Continuation intent ("continue", "proceed", "finish", "resume", "pick up", "fix what", "audit findings", "where we left") → auto-resume to Phase 5 without asking, output the `/goal` prompt using existing files.
+- Otherwise show State/Current Task/Progress, ask: Resume or Fresh?
+  - Resume → skip to Phase 5, output `/goal` using existing files.
+  - Fresh → delete `loop-stack/<id>/` only (keep `.codex/agents/`), continue to Phase 1.
+- Multiple `ACTIVE` lines → list all, ask which to resume or 'fresh'. Continuation intent → auto-resume most recently modified.
+
+**`DONE <id>` or `EXTENDED_DONE <id>` (no `ACTIVE` line) + continuation intent:**
+→ **EXTEND SEQUENCE** — reopen in place, don't restart:
+1. Rename `loop-stack/<id>_DONE/` (or `_EXTENDED_DONE/`) → `loop-stack/<id>_EXTENDED/`.
+2. Reuse existing PLAN.md, RESEARCH.md, MEMORY.md, TOOLS.md, AGENTS.md, `agents/` as-is — do not re-run researchers, resource-scout, or agent-factory.
+3. Ask ONE question: "What's the next task for this loop?" Append under `## Extension {N} Goal` in PLAN.md.
+4. Spawn `planner` once against the new goal (existing RESEARCH.md/TOOLS.md as context) to append new `[GN]` tasks.
+5. Reset STATUS.md: State = IN_PROGRESS, Current Task = first new task, Task Progress updated.
+6. Output the `/goal` prompt directly for the outer loop (skip Phase 1–4).
+
+On completion of a loop directory containing `_EXTENDED`: rename it to `_EXTENDED_DONE` instead of plain `_DONE`.
+
+**`NONE`, or `DONE`/`EXTENDED_DONE` with no continuation intent:** → Phase 1 (fresh loop).
+
+**RESUME/EXTEND RULES — always apply when going to Phase 5 this way:**
 Skip Phase 2, 3, and 4 entirely. Read STATUS.md + PLAN.md to find where the loop stopped. Reuse existing RESEARCH.md, MEMORY.md, TOOLS.md, AGENTS.md — do not re-run startup agents.
 
 > **To update loop-engineer:** re-run `install.sh --update` / `install.ps1 -Update -Codex`. Updates are never applied automatically mid-loop.
@@ -117,14 +134,7 @@ Each researcher prompt:
 
 Wait for ALL researchers to complete.
 
-Spawn watcher immediately after researchers complete:
-  Loop directory: loop-stack/<LOOP_ID>/
-  Agents watched: researchers (just completed in Step 1)
-  Check loop-stack/<LOOP_ID>/STATUS.md ## Active Heartbeats for signs of incomplete work.
-  If any researcher shows incomplete heartbeat, report STUCK in ## Last Watcher Report.
-  Read .codex/agents/watcher.toml for full instructions.
-  Call report_agent_job_result when done.
-Wait for watcher to complete.
+Stuck-agent check (you do this yourself — no watcher agent): if one researcher took much longer than the others, check its heartbeat line in STATUS.md "## Active Heartbeats". If stale, treat it STUCK, note it, and proceed with the findings you have.
 
 Step 2 — spawn_agent: resource-scout
   Loop directory: loop-stack/<LOOP_ID>/
@@ -143,22 +153,7 @@ Step 3 — spawn_agent: planner
   Call report_agent_job_result when done.
 Wait for planner to complete.
 
-Step 4 — Agent-factory (conditional):
-Read PLAN.md to count tasks. Assess goal domain.
-- SKIP if BOTH: task count ≤ 2 AND goal domain is generic (no clear need for specialists).
-  If skipping: write loop-stack/<LOOP_ID>/AGENTS.md with "# Specialized Agents\n## Status\nNONE CREATED". Proceed to outer loop.
-- RUN if EITHER: task count ≥ 3 OR goal domain clearly benefits from specialists (security, ML/data science, content production, medical, finance, system design, etc.).
-
-If running: spawn_agent: agent-factory
-  Loop directory: loop-stack/<LOOP_ID>/
-  Read PLAN.md (goal + tasks), RESEARCH.md, and TOOLS.md.
-  Analyze the goal domain. Determine what specialized agents would improve execution quality.
-  Create 1–3 purpose-built agent TOML files in loop-stack/<LOOP_ID>/agents/ for this goal.
-  Write loop-stack/<LOOP_ID>/AGENTS.md listing each created agent and which tasks it handles.
-  If generic agents sufficient, write AGENTS.md with "NONE CREATED".
-  Read .codex/agents/agent-factory.toml for full instructions.
-  Call report_agent_job_result when done.
-Wait for agent-factory to complete (if spawned).
+Write loop-stack/<LOOP_ID>/AGENTS.md with "# Specialized Agents\n## Status\nNONE CREATED YET". Agent-factory is on-demand, not a fixed startup step — it is invoked later, per-task, inside the outer loop (see step d). Proceed to outer loop.
 
 ═══ OUTER LOOP ═══
 
@@ -177,6 +172,8 @@ c. Spawn researchers in parallel (one per task in batch, 2 if batch=1):
    Wait for all. Increment turns_used.
 
 d. Read AGENTS.md — if specialized agents were created for any tasks in this batch, use those agent TOML files instead of executor.toml for those tasks.
+
+   For every task in the batch with no specialist that clearly needs domain expertise beyond a generic executor (security, ML/data science, content production, medical, finance, system design, etc.): spawn agent-factory for all such tasks simultaneously in parallel (same parallel-first rule as researchers/executors) — reads .codex/agents/agent-factory.toml, creates 1 agent TOML file per task in loop-stack/<LOOP_ID>/agents/, updates AGENTS.md. Wait for all to finish. Skip this entirely for most tasks.
 
    Spawn executors in parallel (one per task in batch):
    For each task: spawn_agent executor (or specialized agent if AGENTS.md designates one) with:
@@ -220,14 +217,16 @@ k. spawn_agent: memory-keeper (single, final consolidation)
 
 l. Advance: mark [x] for passed tasks. If USE_GIT=yes: commit PLAN.md + STATUS.md.
    Find next unchecked group. If none → State = ALL DONE.
-   Rename: loop-stack/<LOOP_ID>/ → loop-stack/<LOOP_ID>_DONE/
-   Write loop-stack/<LOOP_ID>_DONE/REPORT.md with goal, outcome, tasks, skipped, learnings.
+   Rename: loop-stack/<LOOP_ID>/ → loop-stack/<LOOP_ID>_DONE/ (or _EXTENDED_DONE/ if this loop directory contained _EXTENDED)
+   Write REPORT.md in the renamed directory with goal, outcome, tasks, skipped, learnings.
    Stop.
 
 Step 6 — Budget reached:
    Update STATUS.md State to BUDGET_REACHED.
-   Rename: loop-stack/<LOOP_ID>/ → loop-stack/<LOOP_ID>_DONE/
+   Rename: loop-stack/<LOOP_ID>/ → loop-stack/<LOOP_ID>_DONE/ (or _EXTENDED_DONE/ if applicable)
    Write REPORT.md. Stop.
+
+HARD RULE — no plan-approval gate: proceed through this entire sequence without presenting a plan for approval or waiting for a "click proceed" confirmation. This loop is fully autonomous from here.
 ```
 
 > **Requirements:**
@@ -239,13 +238,17 @@ Step 6 — Budget reached:
 
 ## Rules
 
-- Phase 0 always first. Skip `_DONE` folders.
+- Phase 0 always first — run the check-resume script, never scan `loop-stack/` by hand.
 - **File copy**: shell commands only. Never write TOML agent files manually.
 - **Global data first**: every agent reads `.global/MEMORY.md` and `.global/TOOLS.md` before acting.
-- **Parallel first**: startup researchers parallel, per-task researchers parallel, executors parallel, evaluators parallel, verifiers parallel, auditors parallel.
+- **Parallel first**: startup researchers parallel, per-task researchers parallel, on-demand agent-factory parallel, executors parallel, evaluators parallel, verifiers parallel, auditors parallel.
 - **Researcher before executor**: always. Dynamic count based on goal complexity.
+- **Agent-factory is on-demand, not a fixed startup step.** Invoke it only right before executing a task that clearly needs a specialist, and spawn it for all qualifying tasks in a batch simultaneously. Most loops never call it.
+- **knowledge-sources.md (`.codex/knowledge-sources/`) is a reference researchers consult on demand**, not a phase step.
+- **No watcher agent.** Check heartbeats yourself if an agent is slow; never spawn a dedicated watcher.
 - **Memory-keeper twice per batch**: checkpoint (local) after executors, consolidation (local+global) after audit.
 - **Executors append to MEMORY.md directly** during work.
-- **Planner**: once at startup, creates parallel-group-tagged task list.
+- **Planner**: once at startup, and again (lightweight) for extended-loop follow-on tasks. Creates parallel-group-tagged task list.
 - **Fully autonomous**: no user pauses. 3 fails → auto-skip. BLOCK → auto-fix once → skip.
-- On completion: rename to `<LOOP_ID>_DONE/`.
+- **HARD RULE — no plan-approval gate**: proceed through Phase 2 onward without presenting a plan for approval or waiting for a "click proceed" confirmation.
+- On completion: rename to `<LOOP_ID>_DONE/` or `<LOOP_ID>_EXTENDED_DONE/`.

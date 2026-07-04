@@ -37,8 +37,10 @@ fi
 _copy_scripts() {
   local dir="$1"
   mkdir -p "$dir/scripts"
-  cp "$REPO_DIR/scripts/init-loop.sh"  "$dir/scripts/" 2>/dev/null || true
-  cp "$REPO_DIR/scripts/init-loop.ps1" "$dir/scripts/" 2>/dev/null || true
+  cp "$REPO_DIR/scripts/init-loop.sh"      "$dir/scripts/" 2>/dev/null || true
+  cp "$REPO_DIR/scripts/init-loop.ps1"     "$dir/scripts/" 2>/dev/null || true
+  cp "$REPO_DIR/scripts/check-resume.sh"   "$dir/scripts/" 2>/dev/null || true
+  cp "$REPO_DIR/scripts/check-resume.ps1"  "$dir/scripts/" 2>/dev/null || true
 }
 
 _copy_knowledge_sources() {
