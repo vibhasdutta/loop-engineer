@@ -4,9 +4,10 @@ description: >
   Loop engineering wizard for Gemini CLI. Asks 2 questions, then orchestrates
   a fully autonomous agent team (resource-scout, researcher, planner,
   agent-factory, executor, evaluator, verifier, auditor, memory-keeper) until the goal is met.
-  Each agent is a named tool, invoked sequentially. Dynamic researcher count,
-  multiple executors on independent parts in sequence. Persistent memory,
-  git integration, resume support.
+  Each agent is a named tool. On Gemini CLI v0.36+, subagents run in true
+  parallel (spawn multiple in one turn); on older versions, invoke one at a
+  time. Dynamic researcher count. Persistent memory, git integration, resume
+  support.
 ---
 
 # Loop Engineer (Gemini CLI)
@@ -98,16 +99,20 @@ The script creates `loop-stack/<LOOP_ID>/`, `.gemini/agents/` with all agent .md
 
 ## Phase 4 — Startup Sequence
 
-Invoke agents by calling their named agent tool (each agent in `.gemini/agents/` becomes a callable tool). Gemini runs subagents sequentially — invoke each agent in turn, wait for completion, then proceed to the next. For "parallel" steps, invoke each agent one after the other in the same logical step before moving on.
+Invoke agents by calling their named agent tool (each agent in `.gemini/agents/` becomes a callable tool).
 
-### Step 1 — RESEARCHERS (dynamic count, sequential)
+**Check your Gemini CLI version first** (`gemini --version`, or check for parallel subagent support in your build):
+- **v0.36+**: subagents run in **true parallel** — call multiple agent tools in the same turn/response and Gemini CLI's scheduler dispatches them concurrently. Use this for every "parallel" step below.
+- **Older versions**: no concurrent subagent dispatch — invoke each agent in turn, wait for completion, then invoke the next.
+
+### Step 1 — RESEARCHERS (dynamic count, parallel on v0.36+)
 
 Determine researcher count by goal complexity:
 - Simple/single-domain → 2 researchers
 - Medium/multi-domain → 3 researchers
 - Large/multi-system → 4 researchers
 
-**Invoke all researchers sequentially** (call each researcher agent in turn, wait for each before the next):
+**Call all researcher agent tools in the same turn** (v0.36+: they run concurrently; pre-v0.36: invoke one at a time and wait for each):
 
 Domains to distribute:
 - **Context & Prior Work**: source structure, patterns, package files, tests
@@ -160,7 +165,7 @@ Write `loop-stack/<LOOP_ID>/AGENTS.md` with `# Specialized Agents\n## Status\nNO
 
 Initialize: `turns_used = 0`, `skipped_tasks = []`.
 
-Agents run sequentially — invoke each, wait for completion, then invoke the next.
+**v0.36+**: call multiple agent tools in the same turn wherever a step says "parallel" — Gemini CLI runs them concurrently. **Pre-v0.36**: invoke each agent, wait for completion, then invoke the next, even for "parallel" steps.
 
 ### Iteration steps:
 
@@ -168,12 +173,12 @@ Agents run sequentially — invoke each, wait for completion, then invoke the ne
 
 2. **Read state** — identify current parallel group (all unchecked [GN] tasks).
 
-3. **RESEARCHERS** — invoke one per task in batch sequentially (2 if batch=1).
+3. **RESEARCHERS (parallel)** — one per task in batch (2 if batch=1), all called in the same turn on v0.36+.
    Each appends to RESEARCH.md. Increment turns_used.
 
-4. **Before executors, check AGENTS.md.** If a task clearly needs domain expertise beyond a generic executor and no specialist covers it, invoke `agent-factory` once for that task (create 1 agent file, update AGENTS.md). Skip this for most tasks.
+4. **Before executors, check AGENTS.md.** For every task in the batch that clearly needs domain expertise beyond a generic executor and has no specialist yet, call `agent-factory` for all of them in the same turn (v0.36+: concurrent) to create their agent files and update AGENTS.md. Skip this for most tasks.
 
-5. **EXECUTORS** — invoke one per task sequentially:
+5. **EXECUTORS (parallel)** — one per task, all called in the same turn on v0.36+:
    ```
    Loop directory: loop-stack/<LOOP_ID>/
    GLOBAL DATA FIRST — read loop-stack/.global/MEMORY.md AND loop-stack/.global/TOOLS.md.
@@ -185,18 +190,18 @@ Agents run sequentially — invoke each, wait for completion, then invoke the ne
    ```
    Increment turns_used.
 
-6. **MEMORY-KEEPER checkpoints** — invoke one per task sequentially. Local only.
+6. **MEMORY-KEEPER checkpoints (parallel)** — one per task. Local only.
 
-7. **EVALUATORS** — invoke one per task sequentially.
+7. **EVALUATORS (parallel)** — one per task.
 
-8. **VERIFIERS** — invoke one per task sequentially.
+8. **VERIFIERS (parallel)** — one per task.
 
 9. **Process verifier results**:
    - PASS → auditor
    - FAIL < 3 → retry from step 3
    - FAIL ≥ 3 → auto-skip
 
-10. **AUDITORS** — invoke one per passing task sequentially.
+10. **AUDITORS (parallel)** — one per passing task.
 
 11. **Process audit results**:
     - CLEAN/WARN → proceed
@@ -220,7 +225,8 @@ Write `REPORT.md` inside the renamed loop directory and print summary.
 - Phase 0 first — run the check-resume script, never scan `loop-stack/` by hand.
 - **File copy**: `cp ~/.gemini/skills/loop-engineer/agents/*.md .gemini/agents/` — never manual.
 - **Global data first**: every agent reads `.global/MEMORY.md` + `.global/TOOLS.md` before acting.
-- **Sequential execution**: Gemini subagents run one at a time — invoke each agent, wait, then invoke the next. Same group tasks still run in the same logical step before advancing to the next group.
+- **Parallel on v0.36+**: Gemini CLI added true concurrent subagent dispatch in v0.36 (April 2026) — call multiple agent tools in the same turn for any "parallel" step and they run concurrently. Confirm your version with `gemini --version`. Ordinary (non-subagent) tool calls remain sequential regardless of version.
+- **Pre-v0.36 fallback**: no concurrent dispatch exists — invoke each agent, wait, then invoke the next, even for steps marked "parallel" above.
 - **Researcher before executor**: always. Dynamic count based on goal complexity.
 - **Agent-factory is on-demand, not a fixed phase step.** Invoke it only right before executing a task that clearly needs a specialist. Most loops never call it.
 - **knowledge-sources.md is a reference file researchers consult on demand**, not a phase step.

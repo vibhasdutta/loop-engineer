@@ -5,7 +5,7 @@
 
   <p>Answer 2 questions. A self-assembling 9-agent team runs fully autonomously until your goal is done.</p>
 
-  ![Version](https://img.shields.io/badge/version-1.5.0-0d9488?style=flat-square)
+  ![Version](https://img.shields.io/badge/version-1.6.0-0d9488?style=flat-square)
   ![Claude Code](https://img.shields.io/badge/Claude_Code-supported-1a1a2e?style=flat-square&logo=anthropic&logoColor=white)
   ![Cursor](https://img.shields.io/badge/Cursor-supported-000000?style=flat-square)
   ![Gemini CLI](https://img.shields.io/badge/Gemini_CLI-supported-4285F4?style=flat-square&logo=google&logoColor=white)
@@ -48,10 +48,10 @@ Works for any objective: software development, research papers, data analysis, c
 | **Antigravity IDE** (VS Code / JetBrains) | `/loop-engineer` | `invoke_subagent` | ✅ true parallel |
 | **Antigravity 2.0** (desktop) | `/loop-engineer` | `invoke_subagent` | ✅ true parallel |
 | **Hermes Agent** | `/loop-engineer` | `delegate_task` | ✅ true parallel |
-| **Gemini CLI** | `/loop-engineer` | named agent tools | ⚡ sequential |
-| **OpenCode** | `/loop-engineer` | `task` tool | ⚡ sequential |
+| **Gemini CLI** | `/loop-engineer` | named agent tools | ✅ true parallel (v0.36+), ⚡ sequential on older versions |
+| **OpenCode** | `/loop-engineer` | `task` tool | ⚡ sequential (subagent dispatch is serialized due to an upstream bug — [issue #14195](https://github.com/anomalyco/opencode/issues/14195)) |
 | **OpenAI Codex CLI** | `/loop-engineer` | `spawn_agent` | ✅ true parallel |
-| **VS Code GitHub Copilot** | attach `loop-engineer.prompt.md` | `readFile` + agent roles | ⚡ sequential |
+| **VS Code GitHub Copilot** | attach `loop-engineer.prompt.md` | `readFile` + agent roles | ⚡ sequential (no subagent primitive at all) |
 
 ---
 

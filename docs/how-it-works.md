@@ -138,7 +138,7 @@ Only the executor produces goal output. All other agents are explicitly forbidde
 
 The framework is **domain-agnostic** — it works for any goal: coding, research, content production, data analysis, automation, or any other objective. The executor derives its execution method from the goal; so does the evaluator when verifying results.
 
-On **Claude Code**, **Cursor**, **Antigravity**, **Hermes Agent**, and **Codex CLI**, agents run in true parallel — Antigravity uses `invoke_subagent`, Hermes uses `delegate_task`, Codex uses `spawn_agent`. On **Gemini CLI** and **OpenCode**, each agent is a named tool invoked sequentially — one at a time, no concurrent dispatch.
+On **Claude Code**, **Cursor**, **Antigravity**, **Hermes Agent**, and **Codex CLI**, agents run in true parallel — Antigravity uses `invoke_subagent`, Hermes uses `delegate_task`, Codex uses `spawn_agent`. **Gemini CLI v0.36+** also runs subagents in true parallel (added April 2026) — call multiple agent tools in the same turn and Gemini CLI's scheduler dispatches them concurrently; on older versions, invoke one at a time. **OpenCode** is sequential — not by design, but because its `task` tool dispatch is currently serialized by an upstream bug ([issue #14195](https://github.com/anomalyco/opencode/issues/14195)); this may change once that's fixed. **VS Code Copilot** has no subagent primitive at all, so it's sequential by platform design, not a bug.
 
 ---
 

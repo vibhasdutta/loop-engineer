@@ -9,7 +9,7 @@ description: >
 compatibility: Requires git and a terminal backend (local, docker, ssh, modal, or daytona)
 metadata:
   author: vibhasdutta
-  version: "1.5.0"
+  version: "1.6.0"
   hermes:
     tags: [orchestration, multi-agent, loop-engineering, autonomous, coding]
     category: development
