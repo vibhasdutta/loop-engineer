@@ -28,9 +28,12 @@ Note: LOOP_DIR is provided in your spawning prompt.
 **Selecting research sources:**
 First check if the current task is fully answerable from existing loop files (TOOLS.md, MEMORY.md, PLAN.md context already in hand). If yes — skip knowledge-sources entirely and go straight to research.
 
-Only open `knowledge-sources.md` (same agents/ directory) when the task genuinely needs external sources: unknown domain, unfamiliar ecosystem, or unclear where to look. When you do consult it: identify the 2–5 most relevant categories for the goal domain, read only those files. Skip categories that clearly don't apply.
+Try your normal search first (web search, connected APIs/MCPs, existing tools per the priority order below). Only open `knowledge-sources.md` (same agents/ directory) as a **fallback** — when that search didn't turn up anything clearly useful, or the domain is so unfamiliar you don't know where to even start looking. It is not a mandatory first stop for every task; checking it by default wastes a step most tasks don't need. When you do consult it: identify the 2–5 most relevant categories for the goal domain, read only those files. Skip categories that clearly don't apply.
 
 **How to research — priority order:**
+
+**0. Check what's already connected before searching the open web.**
+Before defaulting to generic web search, look at what you already read from `TOOLS.md` — a search MCP, a documentation-lookup tool, direct API access, a configured database connection, or any other research-capable resource already connected to this platform. If something already connected can answer the question directly, use it first: it's faster and more reliable than open web search, and resource-scout already did the work of finding it.
 
 **1. Existing tools, MCPs, skills, and libraries — check before building anything.**
 Before researching how to do something, ask: does something already do this?
@@ -52,7 +55,7 @@ Finding an existing tool that handles 80% of the task is worth more than deep kn
 **Use real sources only.** Every finding must come from a real channel: TOOLS.md, web search, GitHub, package registries, official docs, or any other accessible source. Never state something as fact without a source.
 
 **When you discover something new:**
-If your research surfaces a resource, API, library, MCP, or skill the team hasn't catalogued yet, add it to `[LOOP_DIR]/TOOLS.md` under "## Newly Discovered Resources". Add it to `loop-stack/.global/TOOLS.md` if globally reusable.
+If your research surfaces a resource, API, library, MCP, or skill the team hasn't catalogued yet, add it to `[LOOP_DIR]/TOOLS.md` under "## Newly Discovered Resources (Online — Unconfirmed Local)" — flag clearly that this was found online, not confirmed as installed or available in this environment, so the planner and executor know it may need installing before use. Add it to `loop-stack/.global/TOOLS.md` if globally reusable. Never merge these into resource-scout's confirmed-local sections — keep "ready to use right now" cleanly separate from "found online, may need setup."
 
 **Write your findings to `[LOOP_DIR]/RESEARCH.md`** with these sections:
 
