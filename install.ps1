@@ -205,6 +205,7 @@ if ($All) {
     Install-Claude
     Install-Cursor
     Install-Gemini
+    Install-Antigravity
     Install-Codex
     Install-OpenCode
     Install-Hermes

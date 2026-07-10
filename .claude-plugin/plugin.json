@@ -1,7 +1,7 @@
 {
   "name": "loop-engineer",
   "version": "1.6.0",
-  "description": "Loop engineering wizard for Claude Code. Answer 2 questions and Claude orchestrates a self-assembling, fully autonomous 9-agent team until your goal is met — for any domain, not just code.",
+  "description": "Loop engineering wizard for Claude Code. Answer 2 questions and Claude orchestrates a self-assembling, fully autonomous 8-agent team until your goal is met — for any domain, not just code.",
   "author": {
     "name": "Vibhas Dutta",
     "email": "dotdefence.info@gmail.com"

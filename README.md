@@ -3,7 +3,7 @@
 
   <h1>loop-engineer</h1>
 
-  <p>Answer 2 questions. A self-assembling 9-agent team runs fully autonomously until your goal is done.</p>
+  <p>Answer 2 questions. A self-assembling 8-agent team runs fully autonomously until your goal is done.</p>
 
   ![Version](https://img.shields.io/badge/version-1.6.0-0d9488?style=flat-square)
   ![Claude Code](https://img.shields.io/badge/Claude_Code-supported-1a1a2e?style=flat-square&logo=anthropic&logoColor=white)
@@ -32,7 +32,7 @@ Works for any objective: software development, research papers, data analysis, c
 - **Domain-agnostic by design** — no hardcoded task types or procedures. Agents derive their behavior from the goal. The same framework that builds a web service can write a research report or configure a data pipeline.
 - **Self-assembling agent team** — after planning, an `agent-factory` creates 1–3 specialized agents tuned to the specific goal domain and writes an `AGENTS.md` manifest. Executors check this and use specialists when available. If generic agents are sufficient, factory creates nothing.
 - **Resource scout runs before everything** — discovers MCPs, skills, local tools, APIs, and datasets relevant to the goal. Writes a usage guide with exact callable names and invocation syntax so executors never have to guess.
-- **Researcher runs before every executor pass** — the executor never acts blind. The researcher consults a 33-category knowledge-sources directory to find the right research channels for the goal domain, then prioritizes finding existing tools, MCPs, libraries, and APIs before planning how to build. Writes structured findings for three audiences: executor (how to do it), evaluator (verification criteria), and auditor (quality standards).
+- **Researcher runs before every executor pass** — the executor never acts blind. The researcher consults a 33-category knowledge-sources directory to find the right research channels for the goal domain, then prioritizes finding existing tools, MCPs, libraries, and APIs before planning how to build. Writes structured findings for two audiences: executor (how to do it) and verifier/auditor (verification criteria and quality standards).
 - **Memory accumulates across tasks and loops** — each completed task distills learnings into `MEMORY.md`. The `.global/MEMORY.md` persists across all loops in the project so the agent gets smarter over time.
 - **Fully autonomous failure handling** — 3 verifier failures → auto-skip; auditor BLOCK → auto-fix once then skip. Never pauses for user input.
 
@@ -189,16 +189,15 @@ Phase 5  Outer loop — per parallel group until all tasks done or budget hit:
          ├── Agent Factory  (on-demand: only for tasks that clearly need a
          │                   specialist and have none yet — most tasks skip this)
          ├── Executors      (one per task, parallel — check AGENTS.md for specialists first)
-         ├── Memory-keeper checkpoint (local only)
-         ├── Evaluators     (one per task, parallel)
-         ├── Verifiers      (one per task, parallel)
+         ├── Verifiers      (one per task, parallel — merged pass: checks RESEARCH.md's
+         │                   criteria AND runs the stop condition, one call does both jobs)
          │    PASS ──────────────────────────────────→ Auditor
          │    FAIL < 3 ──────────────────────────────→ retry from Researchers
          │    FAIL ≥ 3 ──────────────────────────────→ auto-skip
          ├── Auditors       (passing tasks only, parallel)
          │    CLEAN/WARN ─────────────────────────────→ advance
          │    BLOCK ──────────────────────────────────→ auto-fix once → retry → auto-skip
-         └── Memory-keeper final (local + global write)
+         └── Memory-keeper (single, local + global write)
          → mark [x], git commit if enabled, find next group
          Stuck-agent detection is inline — the orchestrator itself checks stale
          heartbeats in STATUS.md; there is no dedicated watcher agent.
@@ -216,14 +215,13 @@ Phase 6  Report
 | Agent | What it does |
 |---|---|
 | **resource-scout** | Discovers everything available for the goal — MCP servers, skills, local tools, APIs, datasets, external resources. Writes `TOOLS.md` with a usage guide of exact callable names and invocation syntax. Propagates newly discovered resources live during execution. Cached globally for 7 days. |
-| **researcher** | Maps what's known, what's needed, and what could go wrong before the executor acts. Consults `knowledge-sources.md` to identify the right research channels for the goal domain (33 categories: search engines, package registries, GitHub, APIs, security databases, finance, medical, etc.), then searches across those sources — prioritizing existing MCPs, skills, libraries, and APIs before building from scratch. Writes `RESEARCH.md` for three audiences: the executor (how to do it), the evaluator (what to verify), and the auditor (what right looks like). Dynamic count (2–4) based on goal complexity. Runs before every executor pass. |
+| **researcher** | Maps what's known, what's needed, and what could go wrong before the executor acts. Consults `knowledge-sources.md` to identify the right research channels for the goal domain (33 categories: search engines, package registries, GitHub, APIs, security databases, finance, medical, etc.), then searches across those sources — prioritizing existing MCPs, skills, libraries, and APIs before building from scratch. Writes `RESEARCH.md` for two audiences: the executor (how to do it) and the verifier/auditor (what to verify, what right looks like). Dynamic count (2–4) based on goal complexity. Runs before every executor pass. |
 | **planner** | Reads all researcher output and resource discoveries. Creates atomic tasks tagged with parallel group markers: same `[GN]` = run in parallel, different `[GN]` = sequential dependency. Runs once at startup. |
 | **agent-factory** | On-demand tool, not a fixed phase — invoked only right before executing a specific task that clearly needs domain expertise a generic executor lacks, and only for that task. Reads `PLAN.md`, `RESEARCH.md`, and `TOOLS.md`, then writes one purpose-built agent to `loop-stack/<LOOP_ID>/agents/` (loop-specific, not platform-global) and updates the `AGENTS.md` manifest. Most loops never call it. |
 | **executor** | Reads `RESEARCH.md`, checks `AGENTS.md` for loop-specific specialists (from `loop-stack/<LOOP_ID>/agents/`), then derives execution method from the goal — writes code, produces documents, processes data, runs pipelines, or whatever the task requires. Implements one task. Appends discoveries to `MEMORY.md` inline. Goal output always goes to the project directory, never inside `loop-stack/`. Never marks tasks complete. |
-| **evaluator** | Reads `RESEARCH.md § Verification Criteria` first — the researcher already defined what passing looks like for this specific task. Then confirms output exists in the right place (project directory, not `loop-stack/`), satisfies those criteria, and is complete with no placeholders. Reports pass/fail with specifics. Never executes the goal itself. |
-| **verifier** | Dynamically written per loop with the actual stop condition. Runs it, marks `[x]` in `PLAN.md` on pass, writes error on fail. Hard rule: never marks done unless verification actually passed. |
-| **auditor** | Reads `RESEARCH.md § Quality Standards` first — the researcher already documented what good output looks like vs. what to avoid for this task. Catches problems the evaluator wouldn't: things that technically work but aren't done the right way. Three outcomes: CLEAN (proceed), WARN (non-blocking), BLOCK (triggers one auto-fix attempt). |
-| **memory-keeper** | Distills new learnings into loop `MEMORY.md` and the shared `loop-stack/.global/MEMORY.md`. Runs twice per task batch: checkpoint after executors, full consolidation after auditors. |
+| **verifier** | The single quality gate before a task is marked done — merges what used to be two passes. Reads `RESEARCH.md § Verification Criteria` first — the researcher already defined what passing looks like for this task — and confirms output exists in the right place, satisfies those criteria, and is complete with no placeholders. Then runs the actual stop condition (dynamically written per loop with the real condition substituted in). Marks `[x]` in `PLAN.md` on pass, writes the exact failure reason on fail. Hard rule: never marks done unless verification actually passed. |
+| **auditor** | Reads `RESEARCH.md § Quality Standards` first — the researcher already documented what good output looks like vs. what to avoid for this task. Catches problems the verifier wouldn't: things that technically work but aren't done the right way. Three outcomes: CLEAN (proceed), WARN (non-blocking), BLOCK (triggers one auto-fix attempt). |
+| **memory-keeper** | Distills new learnings into loop `MEMORY.md` and the shared `loop-stack/.global/MEMORY.md`. Runs once per task batch, after auditors — executors already append learnings to `MEMORY.md` inline as they work, so this is a single final consolidation, not a checkpoint-plus-consolidation pair. |
 
 ---
 
@@ -267,7 +265,7 @@ loop-stack/
 | OpenCode | `AGENTS.md` | `.opencode/agents/` | `~/.config/opencode/skills/` | `opencode.json` → `mcp` key |
 | Hermes Agent | `HERMES.md` / `.hermes.md` | `.hermes/agents/` | `~/.hermes/skills/` | `~/.hermes/config.yaml` → `mcp_servers` |
 | OpenAI Codex CLI | — | `.codex/agents/` (TOML) | `~/.codex/skills/` | `~/.codex/config.yaml` |
-| VS Code Copilot | `.github/copilot-instructions.md` | `.github/loop-engineer/agents/` | `~/.config/loop-engineer/copilot/` | `.vscode/mcp.json` |
+| VS Code Copilot | `.github/copilot-instructions.md` | `.github/agents/` | `~/.config/loop-engineer/copilot/` | `.vscode/mcp.json` |
 
 > **Codex note:** knowledge-sources live at `.codex/knowledge-sources/` (sibling of agents/, not inside it) — Codex's agents/ directory holds only TOML agent definitions.
 

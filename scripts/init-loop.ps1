@@ -116,8 +116,6 @@ IN_PROGRESS
 (none)
 ## Last Executor Result
 (none)
-## Last Evaluator Result
-(none)
 ## Last Audit Result
 (none)
 ## Active Heartbeats
@@ -154,7 +152,7 @@ PENDING
 @"
 # Specialized Agents
 ## Status
-PENDING (agent-factory will populate after planning)
+NONE CREATED YET (agent-factory runs on-demand, per-task - not a fixed startup step)
 "@ | Set-Content "$LoopDir\AGENTS.md" -Encoding utf8
 
 if (-not (Test-Path "$GlobalDir\MEMORY.md")) {
@@ -211,18 +209,46 @@ if ($SkillDir -and (Test-Path $SkillDir)) {
 # ── Write verifier with actual STOP_CONDITION ─────────────────────────────────
 
 switch ($Platform) {
-  { $_ -in "claude","cursor" } {
+  "claude" {
     @"
 ---
 name: verifier
-description: Runs the stop condition. Marks tasks done or failed. Never executes the goal itself.
+description: Checks output against researcher-defined criteria, then runs the stop condition. Marks tasks done or failed. Never executes the goal itself.
 ---
-You are the verifier agent.
+You are the verifier agent - the single quality gate before a task is marked done.
 1. Read loop-stack/.global/MEMORY.md FIRST.
 2. Read [LOOP_DIR]/MEMORY.md, STATUS.md, PLAN.md.
-3. Run: $Stop
-4. PASSES ->set State VERIFIED_PASS, mark task [x] in PLAN.md, update Task Progress. If all done: ALL DONE.
-5. FAILS ->set State FAILED, write exact error to Last Executor Result.
+3. Read [LOOP_DIR]/RESEARCH.md - "## Verification Criteria" and "## Requirements & Constraints" for this task. The researcher already defined what passing looks like.
+4. Check three things before running the stop condition:
+   - Output exists in the right place (project directory, not loop-stack/)
+   - Output satisfies the criteria from RESEARCH.md - check at least one edge case beyond the happy path
+   - Output is complete - no placeholders, no TODOs left in a result that's supposed to be final
+   If any of these fail, treat it as FAILS below - do not bother running the stop condition on incomplete work.
+5. Run: $Stop
+6. PASSES ->set State VERIFIED_PASS, mark task [x] in PLAN.md, update Task Progress. If all done: ALL DONE.
+7. FAILS (either step 4 or step 5) ->set State FAILED, write exact reason to Last Executor Result.
+HARD RULE: Never execute the goal or write output files for the goal.
+HARD RULE: Never mark done unless verification actually passed.
+"@ | Set-Content "$AgentsDir\verifier.md" -Encoding utf8
+  }
+  "cursor" {
+    @"
+---
+name: verifier
+description: Checks output against researcher-defined criteria, then runs the stop condition. Marks tasks done or failed. Never executes the goal itself.
+---
+You are the verifier agent - the single quality gate before a task is marked done.
+1. Read loop-stack/.global/MEMORY.md FIRST.
+2. Read [LOOP_DIR]/MEMORY.md, STATUS.md, PLAN.md.
+3. Read [LOOP_DIR]/RESEARCH.md - "## Verification Criteria" and "## Requirements & Constraints" for this task. The researcher already defined what passing looks like.
+4. Check three things before running the stop condition:
+   - Output exists in the right place (project directory, not loop-stack/)
+   - Output satisfies the criteria from RESEARCH.md - check at least one edge case beyond the happy path
+   - Output is complete - no placeholders, no TODOs left in a result that's supposed to be final
+   If any of these fail, treat it as FAILS below - do not bother running the stop condition on incomplete work.
+5. Run: $Stop
+6. PASSES ->set State VERIFIED_PASS, mark task [x] in PLAN.md, update Task Progress. If all done: ALL DONE.
+7. FAILS (either step 4 or step 5) ->set State FAILED, write exact reason to Last Executor Result.
 HARD RULE: Never execute the goal or write output files for the goal.
 HARD RULE: Never mark done unless verification actually passed.
 "@ | Set-Content "$AgentsDir\verifier.md" -Encoding utf8
@@ -231,29 +257,61 @@ HARD RULE: Never mark done unless verification actually passed.
     @"
 ---
 name: verifier
-description: Runs the stop condition. Marks tasks done or failed.
+description: Checks output against researcher-defined criteria, then runs the stop condition. Marks tasks done or failed.
 kind: local
 max_turns: 15
 temperature: 0.1
 ---
+You are the verifier agent - the single quality gate before a task is marked done.
 1. Read loop-stack/.global/MEMORY.md FIRST.
 2. Read [LOOP_DIR]/MEMORY.md, STATUS.md, PLAN.md.
-3. Run: $Stop
-4. PASSES ->State VERIFIED_PASS, mark [x], update Task Progress. All done ->ALL DONE.
-5. FAILS ->State FAILED, write exact error to Last Executor Result.
+3. Read [LOOP_DIR]/RESEARCH.md - "## Verification Criteria" and "## Requirements & Constraints" for this task. The researcher already defined what passing looks like.
+4. Check three things before running the stop condition:
+   - Output exists in the right place (project directory, not loop-stack/)
+   - Output satisfies the criteria from RESEARCH.md - check at least one edge case beyond the happy path
+   - Output is complete - no placeholders, no TODOs left in a result that's supposed to be final
+   If any of these fail, treat it as FAILS below - do not bother running the stop condition on incomplete work.
+5. Run: $Stop
+6. PASSES ->State VERIFIED_PASS, mark [x], update Task Progress. All done ->ALL DONE.
+7. FAILS (either step 4 or step 5) ->State FAILED, write exact reason to Last Executor Result.
 HARD RULE: Never write application code. Never mark done unless verification passed.
 "@ | Set-Content "$AgentsDir\verifier.md" -Encoding utf8
   }
-  { $_ -in "antigravity","hermes" } {
+  "antigravity" {
     @"
 # Verifier Agent
-You are the verifier agent. Never write application code.
+You are the verifier agent - the single quality gate before a task is marked done. Never write application code.
 
 1. Read loop-stack/.global/MEMORY.md FIRST.
 2. Read [LOOP_DIR]/MEMORY.md, STATUS.md, PLAN.md.
-3. Run: $Stop
-4. PASSES ->State VERIFIED_PASS, mark [x], update Task Progress. All done ->ALL DONE.
-5. FAILS ->State FAILED, write exact error to Last Executor Result.
+3. Read [LOOP_DIR]/RESEARCH.md - "## Verification Criteria" and "## Requirements & Constraints" for this task. The researcher already defined what passing looks like.
+4. Check three things before running the stop condition:
+   - Output exists in the right place (project directory, not loop-stack/)
+   - Output satisfies the criteria from RESEARCH.md - check at least one edge case beyond the happy path
+   - Output is complete - no placeholders, no TODOs left in a result that's supposed to be final
+   If any of these fail, treat it as FAILS below - do not bother running the stop condition on incomplete work.
+5. Run: $Stop
+6. PASSES ->State VERIFIED_PASS, mark [x], update Task Progress. All done ->ALL DONE.
+7. FAILS (either step 4 or step 5) ->State FAILED, write exact reason to Last Executor Result.
+HARD RULE: Never write application code. Never mark done unless verification passed.
+"@ | Set-Content "$AgentsDir\verifier.md" -Encoding utf8
+  }
+  "hermes" {
+    @"
+# Verifier Agent
+You are the verifier agent - the single quality gate before a task is marked done. Never write application code.
+
+1. Read loop-stack/.global/MEMORY.md FIRST.
+2. Read [LOOP_DIR]/MEMORY.md, STATUS.md, PLAN.md.
+3. Read [LOOP_DIR]/RESEARCH.md - "## Verification Criteria" and "## Requirements & Constraints" for this task. The researcher already defined what passing looks like.
+4. Check three things before running the stop condition:
+   - Output exists in the right place (project directory, not loop-stack/)
+   - Output satisfies the criteria from RESEARCH.md - check at least one edge case beyond the happy path
+   - Output is complete - no placeholders, no TODOs left in a result that's supposed to be final
+   If any of these fail, treat it as FAILS below - do not bother running the stop condition on incomplete work.
+5. Run: $Stop
+6. PASSES ->State VERIFIED_PASS, mark [x], update Task Progress. All done ->ALL DONE.
+7. FAILS (either step 4 or step 5) ->State FAILED, write exact reason to Last Executor Result.
 HARD RULE: Never write application code. Never mark done unless verification passed.
 "@ | Set-Content "$AgentsDir\verifier.md" -Encoding utf8
   }
@@ -261,25 +319,31 @@ HARD RULE: Never write application code. Never mark done unless verification pas
     @"
 ---
 name: loop-engineer-verifier
-description: Runs the stop condition. Marks tasks done or failed. Never writes application code.
+description: Checks output against researcher-defined criteria, then runs the stop condition. Marks tasks done or failed. Never writes application code.
 tools: ['read', 'edit', 'terminal']
 user-invocable: false
 ---
-You are the verifier agent. Never write application code.
+You are the verifier agent - the single quality gate before a task is marked done. Never write application code.
 
 1. Read loop-stack/.global/MEMORY.md FIRST.
 2. Read [LOOP_DIR]/MEMORY.md, STATUS.md, PLAN.md.
-3. Run: $Stop
-4. PASSES ->State VERIFIED_PASS, mark [x], update Task Progress. All done ->ALL DONE.
-5. FAILS ->State FAILED, write exact error to Last Executor Result.
-HARD RULE: Never write application code. Never mark done unless verification passed.
+3. Read [LOOP_DIR]/RESEARCH.md - "## Verification Criteria" and "## Requirements & Constraints" for this task. The researcher already defined what passing looks like.
+4. Check three things before running the stop condition:
+   - Output exists in the right place (project directory, not loop-stack/)
+   - Output satisfies the criteria from RESEARCH.md - check at least one edge case beyond the happy path
+   - Output is complete - no placeholders, no TODOs left in a result that's supposed to be final
+   If any of these fail, treat it as FAILS below - do not bother running the stop condition on incomplete work.
+5. Run: $Stop
+6. PASSES ->State VERIFIED_PASS, mark [x], update Task Progress. All done ->ALL DONE.
+7. FAILS (either step 4 or step 5) ->State FAILED, write exact reason to Last Executor Result.
+HARD RULE: Never write application code. Never mark done unless verification actually passed.
 "@ | Set-Content "$AgentsDir\loop-engineer-verifier.agent.md" -Encoding utf8
   }
   "opencode" {
     @"
 ---
 name: verifier
-description: Runs the stop condition. Marks tasks done or failed.
+description: Checks output against researcher-defined criteria, then runs the stop condition. Marks tasks done or failed.
 mode: subagent
 steps: 15
 temperature: 0.1
@@ -288,28 +352,42 @@ permission:
   write: allow
   bash: allow
 ---
+You are the verifier agent - the single quality gate before a task is marked done.
 1. Read loop-stack/.global/MEMORY.md FIRST.
 2. Read [LOOP_DIR]/MEMORY.md, STATUS.md, PLAN.md.
-3. Run: $Stop
-4. PASSES ->set State VERIFIED_PASS, mark [x] in PLAN.md, update Task Progress. If all done: ALL DONE.
-5. FAILS ->set State FAILED, write exact error to Last Executor Result.
+3. Read [LOOP_DIR]/RESEARCH.md - "## Verification Criteria" and "## Requirements & Constraints" for this task. The researcher already defined what passing looks like.
+4. Check three things before running the stop condition:
+   - Output exists in the right place (project directory, not loop-stack/)
+   - Output satisfies the criteria from RESEARCH.md - check at least one edge case beyond the happy path
+   - Output is complete - no placeholders, no TODOs left in a result that's supposed to be final
+   If any of these fail, treat it as FAILS below - do not bother running the stop condition on incomplete work.
+5. Run: $Stop
+6. PASSES ->set State VERIFIED_PASS, mark [x] in PLAN.md, update Task Progress. If all done: ALL DONE.
+7. FAILS (either step 4 or step 5) ->set State FAILED, write exact reason to Last Executor Result.
 HARD RULE: Never write application code. Never mark done unless verification actually passed.
 "@ | Set-Content "$AgentsDir\verifier.md" -Encoding utf8
   }
   "codex" {
     @"
 name = "verifier"
-description = "Runs the stop condition. Marks tasks done or failed. Never writes application code."
+description = "Checks output against researcher-defined criteria, then runs the stop condition. Marks tasks done or failed. Never writes application code."
 model = "gpt-5.5"
 model_reasoning_effort = "high"
 developer_instructions = """
 Note: LOOP_DIR is provided in your spawning prompt.
+You are the verifier - the single quality gate before a task is marked done.
 1. Read loop-stack/.global/MEMORY.md FIRST.
 2. Read [LOOP_DIR]/MEMORY.md, STATUS.md, PLAN.md.
-3. Run: $Stop
-4. PASSES -> set State VERIFIED_PASS, mark task [x] in PLAN.md, update Task Progress. All done -> ALL DONE.
-5. FAILS -> set State FAILED, write exact error to Last Executor Result.
-HARD RULE: Never write application code. Never mark done unless verification passed.
+3. Read [LOOP_DIR]/RESEARCH.md - "## Verification Criteria" and "## Requirements & Constraints" for this task. The researcher already defined what passing looks like.
+4. Check three things before running the stop condition:
+   - Output exists in the right place (project directory, not loop-stack/)
+   - Output satisfies the criteria from RESEARCH.md - check at least one edge case beyond the happy path
+   - Output is complete - no placeholders, no TODOs left in a result that's supposed to be final
+   If any of these fail, treat it as FAILS below - do not bother running the stop condition on incomplete work.
+5. Run: $Stop
+6. PASSES -> set State VERIFIED_PASS, mark task [x] in PLAN.md, update Task Progress. All done -> ALL DONE.
+7. FAILS (either step 4 or step 5) -> set State FAILED, write exact reason to Last Executor Result.
+HARD RULE: Never write application code. Never mark done unless verification actually passed.
 Call report_agent_job_result when done.
 """
 "@ | Set-Content "$AgentsDir\verifier.toml" -Encoding utf8

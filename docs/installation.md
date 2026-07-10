@@ -262,7 +262,7 @@ Open Copilot Chat, switch to **Agent mode**, attach `.github/prompts/loop-engine
 
 ## Install all platforms at once
 
-Installs Claude Code, Cursor, Gemini CLI, Codex CLI, OpenCode, Hermes Agent, and VS Code Copilot.
+Installs Claude Code, Cursor, Gemini CLI, Antigravity (all 3 surfaces), Codex CLI, OpenCode, Hermes Agent, and VS Code Copilot.
 
 **macOS / Linux:**
 ```bash

@@ -192,7 +192,7 @@ case "$MODE" in
   --opencode)    install_opencode ;;
   --hermes)      install_hermes ;;
   --copilot)     install_copilot ;;
-  --all)         install_claude && install_cursor && install_gemini && install_codex && install_opencode && install_hermes && install_copilot ;;
+  --all)         install_claude && install_cursor && install_gemini && install_antigravity && install_codex && install_opencode && install_hermes && install_copilot ;;
   *)             install_claude ;;
 esac
 
