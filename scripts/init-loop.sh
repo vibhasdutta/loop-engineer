@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # init-loop.sh — initializes a new loop-engineer loop in one command
 # Usage:
-#   bash init-loop.sh --loop-id LOOP_ID --goal GOAL --stop STOP_CONDITION --git yes/no --platform PLATFORM
+#   bash init-loop.sh --loop-id LOOP_ID --goal GOAL --stop STOP_CONDITION --git yes/no --mode MODE --platform PLATFORM
 #
 # Platforms: claude | cursor | gemini | antigravity | opencode | hermes | codex
+# Modes: build (default) | research | patch | audit
 
 set -euo pipefail
 
@@ -12,6 +13,7 @@ GOAL=""
 STOP_CONDITION=""
 USE_GIT="no"
 PLATFORM="claude"
+MODE="build"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -20,6 +22,7 @@ while [[ $# -gt 0 ]]; do
     --stop)     STOP_CONDITION="$2"; shift 2 ;;
     --git)      USE_GIT="$2";        shift 2 ;;
     --platform) PLATFORM="$2";       shift 2 ;;
+    --mode)     MODE="$2";           shift 2 ;;
     *) echo "Unknown arg: $1" >&2; exit 1 ;;
   esac
 done
@@ -100,6 +103,8 @@ fi
 
 cat > "$LOOP_DIR/PLAN.md" <<PLAN
 # Loop Plan
+## Mode
+$MODE
 ## Goal
 $GOAL
 ## Stop Condition

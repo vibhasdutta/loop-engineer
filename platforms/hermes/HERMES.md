@@ -79,8 +79,3 @@ Files auto-injected as project context (first match wins):
 4. `.cursorrules`
 
 `SOUL.md` in `~/.hermes/` sets global personality (independent of project context).
-
-## Resume
-
-If a loop is in progress (`loop-stack/*/STATUS.md` exists, not ending in `_DONE`),
-the skill offers to resume it before starting fresh.

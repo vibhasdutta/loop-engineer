@@ -7,24 +7,12 @@
         │
         ▼
 ┌─────────────────────────────────────────────────────┐
-│  Phase 0: Resume check                              │
-│  Runs scripts/check-resume.sh|.ps1 — deterministic,  │
-│  never inferred by the model from scanning files.    │
-│  ACTIVE + continuation intent → auto-resume, no ask  │
-│  ACTIVE, no continuation      → ask Resume or Fresh  │
-│  DONE/EXTENDED_DONE + continuation → EXTEND SEQUENCE:│
-│    reopen <id>_DONE → <id>_EXTENDED in place, reuse  │
-│    all research/memory/tools, ask 1 follow-up        │
-│    question, re-plan new tasks, jump to Phase 5      │
-│  Nothing relevant found → Phase 1                    │
+│  Phase 1: Wizard — 3 questions                       │
+│  mode (build/research/patch/audit, skipped if passed │
+│  as an argument) · goal · git integration            │
+│  Auto: LOOP_ID · stop · budget                       │
+│  No resume support — every run starts a fresh loop.  │
 └──────────────┬────────────────────────────────────────┘
-               │
-               ▼
-┌─────────────────────────────────────┐
-│  Phase 1: Wizard — 2 questions      │
-│  goal · git integration             │
-│  Auto: LOOP_ID · stop · budget      │
-└──────────────┬──────────────────────┘
                │
                ▼
 ┌──────────────────────────────────────────────────────┐
@@ -69,32 +57,39 @@
 ┌──────────────────────────────────────────────────────┐
 │  Phase 5: Outer loop  [Task X/N — Y% | Turn Z]       │
 │  Runs per parallel group — FULLY AUTONOMOUS          │
+│  Mode gating: research/audit skip the build step;    │
+│  audit's Auditor pass IS the task; patch tells        │
+│  researchers/executors the existing code is ground   │
+│  truth (fix/extend, don't rewrite)                    │
 │                                                      │
 │   Researchers (parallel)                             │
 │     Reads global MEMORY + TOOLS, writes RESEARCH.md  │
+│     (research mode: writes the task's final output)  │
 │       ↓                                              │
 │   Agent Factory (on-demand, parallel across tasks    │
 │     that need it) — only for tasks with no specialist│
 │     that clearly need one; most tasks skip this      │
 │       ↓                                              │
-│   Executors                                          │
+│   Executors — SKIPPED in research/audit mode          │
 │     Reads RESEARCH.md, checks AGENTS.md for          │
 │     specialists, derives execution method from goal  │
 │     Appends learnings to MEMORY.md inline            │
 │       ↓                                              │
-│   Verifiers (parallel) — merged pass                 │
+│   Auditors (parallel) — audit mode: this IS the task │
+│     Reviews build for security/tech-debt/patterns     │
+│   CLEAN/WARN → Verifier                              │
+│   BLOCK      → auto-fix once → re-audit → auto-skip  │
+│       ↓                                              │
+│   Verifiers (parallel) — the final gate               │
 │     Checks RESEARCH.md criteria (right place,        │
 │     satisfies criteria, no placeholders) THEN         │
 │     runs the stop condition — one call, both jobs    │
 │       ↓              ↓                               │
 │    PASS             FAIL                             │
-│       ↓         attempts < 3 → retry                 │
-│   Auditors   →  attempts ≥ 3 → AUTO-SKIP             │
-│   (passing tasks only)                               │
-│   CLEAN/WARN → proceed                               │
-│   BLOCK      → auto-fix once → retry → auto-skip     │
-│       ↓                                              │
-│   Memory-Keeper (single)                             │
+│       ↓         attempts < 3 → retry from Researchers│
+│   Memory-Keeper  attempts ≥ 3 → AUTO-SKIP             │
+│   (single, learnings/context only — never executes   │
+│    the goal)                                          │
 │     Consolidates → loop MEMORY.md + .global/MEMORY   │
 │       ↓                                              │
 │   Next group or ALL DONE                             │
@@ -108,11 +103,23 @@
                ▼
 ┌─────────────────────────────────────────────┐
 │  Phase 6: Completion                        │
-│  Fresh loop:    <id>/ → <id>_DONE/          │
-│  Extended loop: <id>_EXTENDED/ → <id>_EXTENDED_DONE/ │
+│  <id>/ → <id>_DONE/ (bookkeeping only)      │
 │  REPORT.md — outcome · tasks · learnings    │
 └─────────────────────────────────────────────┘
 ```
+
+---
+
+## Modes
+
+Set once in Phase 1 (or passed as an argument, e.g. `/loop-engineer patch`), gates Phase 5 for the whole loop:
+
+| Mode | What it does |
+|---|---|
+| `build` (default) | New work from scratch — full pipeline, unchanged. |
+| `patch` | Fixes or extends the existing codebase — same pipeline, but every researcher/executor spawn adds: the existing code is ground truth, read it first, then fix or extend it, don't rewrite from scratch. |
+| `research` | Investigate and report only, no code changes. Skips the executor and auditor steps entirely; the researcher writes each task's final deliverable directly, and the verifier checks that against the stop condition. |
+| `audit` | Review only, no code changes. Skips the executor step; the auditor's review of existing code/output IS the task, with findings written to RESEARCH.md instead of triggering an auto-fix. |
 
 ---
 
@@ -125,9 +132,9 @@
 | `planner` | Creates atomic tasks tagged with [G1]/[G2] parallel group markers. Same group = parallel, different group = sequential dependency. Runs once at startup. | No |
 | `agent-factory` | On-demand tool, not a fixed phase step. Invoked only right before executing a specific task that clearly needs domain expertise a generic executor lacks — checked per task in Phase 5, before spawning executors. Writes one purpose-built agent to `loop-stack/<LOOP_ID>/agents/` (loop-specific, not platform-global) and updates the AGENTS.md manifest. Most loops never call it. | No |
 | `executor` | Reads RESEARCH.md, checks AGENTS.md for loop-specific specialists (from `loop-stack/<LOOP_ID>/agents/`), then derives execution method from the goal — writes code, produces documents, processes data, or whatever the task requires. Goal output always goes to the project directory, never inside loop-stack/. Appends discoveries to MEMORY.md inline. | Yes |
-| `verifier` | The single quality gate before a task is marked done — merges what used to be two passes. Reads RESEARCH.md `## Verification Criteria` first — the researcher already defined what passing looks like for this task — confirms output is in the right place, satisfies those criteria, and is complete, then runs the actual stop condition (dynamically written per loop with the real condition substituted in). Marks [x] in PLAN.md on pass. Hard rule: never marks done unless verification actually passed. | No |
-| `auditor` | Reads RESEARCH.md `## Quality Standards` first — the researcher documented what good output looks like vs. what to avoid for this task. Catches problems the verifier wouldn't: things that technically work but aren't done the right way. Three outcomes: CLEAN (proceed), WARN (non-blocking), BLOCK (auto-fix once). | No |
-| `memory-keeper` | Distills learnings into loop MEMORY.md and global .global/MEMORY.md. Runs once per batch, after auditors — a single final consolidation. Executors already append learnings to MEMORY.md inline as they work. | No |
+| `auditor` | Runs right after the build. Reads RESEARCH.md `## Quality Standards` first — the researcher documented what good output looks like vs. what to avoid for this task. Catches problems a functional check wouldn't: things that technically work but aren't done the right way. Three outcomes: CLEAN (proceed to verifier), WARN (non-blocking, proceed), BLOCK (auto-fix once, then proceeds either way). In audit mode, this review IS the task. | No |
+| `verifier` | The final quality gate before a task is marked done — merges what used to be two passes. Reads RESEARCH.md `## Verification Criteria` first — the researcher already defined what passing looks like for this task — confirms output is in the right place, satisfies those criteria, and is complete, then runs the actual stop condition (dynamically written per loop with the real condition substituted in). Marks [x] in PLAN.md on pass; a FAIL triggers a retry from the researcher. Hard rule: never marks done unless verification actually passed. | No |
+| `memory-keeper` | Distills learnings into loop MEMORY.md and global .global/MEMORY.md — nothing else. Runs once per batch, after verification — a single final consolidation. Executors already append learnings to MEMORY.md inline as they work. Never executes the goal or writes goal output. | No |
 
 Only the executor produces goal output. All other agents are explicitly forbidden from doing so.
 
@@ -151,15 +158,12 @@ On **Claude Code**, agents run in true parallel via the `Agent` tool — call it
 | `loop-stack/<id>/AGENTS.md` | Specialized agents manifest, updated on-demand by agent-factory (starts as "NONE CREATED YET") |
 | `loop-stack/<id>/agents/` | Loop-specific domain specialists written by agent-factory |
 | `loop-stack/<id>/REPORT.md` | Generated on completion — outcome, tasks, learnings, tools used |
-| `loop-stack/<id>_DONE/` | Fresh loop directory renamed on completion — check-resume script skips these unless continuation intent is detected |
-| `loop-stack/<id>_EXTENDED/` | A `_DONE` loop reopened in place to continue with new tasks — same directory, same research/memory/tools, not a new loop-id |
-| `loop-stack/<id>_EXTENDED_DONE/` | Renamed when an extended loop completes |
+| `loop-stack/<id>_DONE/` | Loop directory renamed on completion — bookkeeping only, nothing reads it back; every `/loop-engineer` run starts a fresh loop |
 | `loop-stack/.global/MEMORY.md` | Cross-loop learnings (shared across all loops) |
 | `loop-stack/.global/TOOLS.md` | Cached tool discovery (7-day TTL, shared across all loops) |
 | `<platform-agents>/` | Agent definitions copied from the skill on setup (e.g. `.claude/agents/` for Claude Code, `.codex/agents/` for Codex, `.opencode/agents/` for OpenCode) |
 | `<platform-agents>/knowledge-sources.md` | Index mapping goal type → which category files to read |
 | `<platform-agents>/knowledge-sources/` | 33 category reference files (search engines, GitHub, package managers, APIs, security, finance, medical, etc.) — researcher reads these to find the right sources for the goal domain |
-| `<skill-dir>/scripts/check-resume.sh` / `.ps1` | Deterministic scan of `loop-stack/` for ACTIVE / DONE / EXTENDED_DONE loops — Phase 0 always runs this instead of inferring state from a file listing |
 
 All state lives in `loop-stack/`. You can inspect any file at any time to see progress.
 
@@ -169,15 +173,15 @@ All state lives in `loop-stack/`. You can inspect any file at any time to see pr
 
 | Situation | What happens |
 |---|---|
-| Task fails 1–2 times | Retries automatically — executor sees error context + researcher re-runs |
-| Task fails 3 times | **Auto-skip** — added to skipped_tasks, loop continues fully autonomous |
-| Auditor flags BLOCK | **Auto-fix once** — executor retried with BLOCK context, re-verified |
-| Auto-fix still blocks | **Auto-skip** — added to skipped_tasks, loop continues |
+| Auditor flags BLOCK | **Auto-fix once** — executor retried with BLOCK context, re-audited |
+| Auto-fix still blocks | **Auto-skip** — added to skipped_tasks, loop continues (audit mode: BLOCK is just recorded as a finding, always proceeds to verifier) |
+| Verifier fails 1–2 times | Retries automatically — researcher re-runs with error context, then executor/auditor repeat |
+| Verifier fails 3 times | **Auto-skip** — added to skipped_tasks, loop continues fully autonomous |
 | Budget exhausted | Loop stops — reports completed and skipped tasks |
-| All tasks verified | State → ALL DONE — directory renamed `<id>_DONE/` (or `<id>_EXTENDED_DONE/` if it was an extended loop), REPORT.md generated |
+| All tasks verified | State → ALL DONE — directory renamed `<id>_DONE/`, REPORT.md generated |
 | Agent takes much longer than its peers | Orchestrator checks its heartbeat in STATUS.md itself, proceeds without it if stale — no dedicated watcher agent involved |
 
-The loop is **fully autonomous** — it never pauses for user input after the initial 2-question setup.
+The loop is **fully autonomous** — it never pauses for user input after the initial 3-question setup, and never resumes a previous run — every invocation starts fresh.
 
 ---
 

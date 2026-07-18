@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "sitescrape": {
+      "command": "node",
+      "args": [
+        "E:/Coding/testcak/sitescrape/server.js"
+      ]
+    }
+  }
+}

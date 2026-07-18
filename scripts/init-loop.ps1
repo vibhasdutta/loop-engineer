@@ -1,15 +1,17 @@
 # init-loop.ps1 - initializes a new loop-engineer loop in one command
 # Usage:
-#   .\init-loop.ps1 -LoopId ID -Goal GOAL -Stop STOP_CONDITION [-Git yes/no] [-Platform PLATFORM]
+#   .\init-loop.ps1 -LoopId ID -Goal GOAL -Stop STOP_CONDITION [-Git yes/no] [-Mode MODE] [-Platform PLATFORM]
 #
 # Platforms: claude | cursor | gemini | antigravity | opencode | hermes | codex
+# Modes: build (default) | research | patch | audit
 
 param(
   [Parameter(Mandatory)][string]$LoopId,
   [Parameter(Mandatory)][string]$Goal,
   [Parameter(Mandatory)][string]$Stop,
   [string]$Git      = "no",
-  [string]$Platform = "claude"
+  [string]$Platform = "claude",
+  [string]$Mode     = "build"
 )
 
 $ErrorActionPreference = "Stop"
@@ -86,6 +88,8 @@ if ($Platform -eq "codex") {
 
 @"
 # Loop Plan
+## Mode
+$Mode
 ## Goal
 $Goal
 ## Stop Condition
